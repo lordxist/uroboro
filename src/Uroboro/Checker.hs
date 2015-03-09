@@ -4,8 +4,11 @@ Description : Typechecker
 Typecheck parser output, which turns it into interpreter input.
 -}
 module Uroboro.Checker
-    (
-      checkExp
+    ( -- * Type checking monad
+      Checker
+    , checkerIO
+      -- * Type checking
+    , checkExp
     , preCheckDef
     , postCheckDef
     , checkDef
@@ -20,6 +23,8 @@ module Uroboro.Checker
 import Control.Monad (foldM, zipWithM)
 import Data.List ((\\), find, nub, nubBy)
 
+import System.Exit (exitFailure)
+
 import Uroboro.Error (Error, Location, failAt)
 
 import Uroboro.Tree.Common (Identifier)
@@ -28,6 +33,13 @@ import qualified Uroboro.Tree.External as Ext
 
 -- |Checker monad.
 type Checker = Either Error
+
+-- |On error, print it and set the exit code.
+checkerIO :: Checker a -> IO a
+checkerIO (Left e)  = do
+    print e
+    exitFailure
+checkerIO (Right b) = return b
 
 -- |Signature of a function definition.
 type FunSig = (Identifier, (Location, [Int.Type], Int.Type))
