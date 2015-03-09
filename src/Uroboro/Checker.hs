@@ -134,7 +134,7 @@ checkExp p c (Ext.DesExp loc name args inner) t = case find match (destructors p
 inferExp :: Program -> Context -> Ext.Exp -> Either Error Int.Exp
 inferExp _ context (Ext.VarExp loc name) = case lookup name context of
     Nothing  -> failAt loc "Unbound Variable"
-    Just typ -> Right (Int.VarExp typ name)
+    Just typ -> return (Int.VarExp typ name)
 inferExp p c (Ext.AppExp loc name args) = case lookup name (functions p) of
     Just (loc', argTypes, returnType) ->
         zipStrict loc loc' (checkExp p c) args argTypes >>= return . Int.AppExp returnType name
@@ -181,7 +181,7 @@ preCheckDef :: Program -> Ext.Def -> Either Error Program
 preCheckDef prog@(Program names cons _ _ _) (Ext.DatDef loc name cons')
     | name `elem` names  = failAt loc "Shadowed Definition"
     | any mismatch cons' = failAt loc "Definition Mismatch"
-    | otherwise          = Right prog {
+    | otherwise          = return prog {
           typeNames = (name:names)
         , constructors = cons ++ cons'
         }
@@ -190,7 +190,7 @@ preCheckDef prog@(Program names cons _ _ _) (Ext.DatDef loc name cons')
 preCheckDef prog@(Program names _ des _ _) (Ext.CodDef loc name des')
     | name `elem` names = failAt loc "Shadowed Definition"
     | any mismatch des' = failAt loc "Definition Mismatch"
-    | otherwise         = Right prog {
+    | otherwise         = return prog {
           typeNames = (name:names)
         , destructors = des ++ des'
         }
@@ -211,14 +211,14 @@ preCheckDef prog@(Program _ _ _ funs rulz) (Ext.FunDef loc name argTypes returnT
 postCheckDef :: Program -> Ext.Def -> Either Error Program
 postCheckDef prog@(Program names _ _ _ _) (Ext.DatDef loc name cons')
     | any missing cons'  = failAt loc "Missing Definition"
-    | otherwise          = Right prog
+    | otherwise          = return prog
   where
     missing (Ext.ConSig _loc' _ _ args)        = (nub args) \\ (name:names) /= []
 postCheckDef prog@(Program names _ _ _ _) (Ext.CodDef loc name des')
     | any missing des'  = failAt loc $
         "Missing Definition: " ++ typeName name ++
         " has a destructor with an unknown argument type"
-    | otherwise         = Right prog
+    | otherwise         = return prog
   where
     missing (Ext.DesSig _loc' _ _ args _)       = (nub args) \\ (name:names) /= []
 postCheckDef prog@(Program _ _ _ _ rulz) (Ext.FunDef loc name argTypes returnType rs)
