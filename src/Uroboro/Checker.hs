@@ -25,7 +25,7 @@ import Data.List ((\\), find, nub, nubBy)
 
 import System.Exit (exitFailure)
 
-import Uroboro.Error (Error, Location, failAt)
+import Uroboro.Error (Error (MakeError), Location)
 
 import Uroboro.Tree.Common (Identifier)
 import qualified Uroboro.Tree.Internal as Int
@@ -40,6 +40,10 @@ checkerIO (Left e)  = do
     print e
     exitFailure
 checkerIO (Right b) = return b
+
+-- |Fail the monad, but with location.
+failAt :: Location -> String -> Checker a
+failAt location message = Left (MakeError location message)
 
 -- |Signature of a function definition.
 type FunSig = (Identifier, (Location, [Int.Type], Int.Type))
