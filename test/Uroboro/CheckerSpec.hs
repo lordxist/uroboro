@@ -6,7 +6,7 @@ module Uroboro.CheckerSpec
     ) where
 
 import Control.Monad (foldM)
-import Data.Either (isLeft, isRight)
+import Data.Either (isRight)
 
 import Test.Hspec
 import Text.Parsec (parse)
@@ -49,10 +49,10 @@ c = [
 
 -- |Assert error message
 shouldFail :: Show a => Checker a -> String -> Expectation
-p `shouldFail` prefix = case checkerEither p of
-  Left (MakeError _ msg) -> takeWhile (/= ':') msg `shouldBe` prefix
+p `shouldFail` part = case checkerEither p of
+  Left (MakeError _ msg) -> msg `shouldContain` part
   Right  x               -> expectationFailure
-    ("expected: " ++ prefix ++ "\n but got: " ++ show x)
+    ("expected: \"... " ++ part ++ " ...\"\n but got: " ++ show x)
 
 spec :: Spec
 spec = do
@@ -68,7 +68,7 @@ spec = do
         it "calls (codata)" $ do
             p <- prelude
             e <- parseString parseExp "mapStream().head()"
-            checkExp p [] e (Type "StreamOfInt") `shouldSatisfy` isLeft
+            checkExp p [] e (Type "StreamOfInt") `shouldFail` ""
     describe "checkPT (data)" $ do
         it "checks return types" $ do
             x:_ <- parseString parseDef "data Int where zero(): Float"
