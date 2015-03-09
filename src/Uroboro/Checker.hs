@@ -26,6 +26,9 @@ import Uroboro.Tree.Common (Identifier)
 import qualified Uroboro.Tree.Internal as Int
 import qualified Uroboro.Tree.External as Ext
 
+-- |Checker monad.
+type Checker = Either Error
+
 -- |Signature of a function definition.
 type FunSig = (Identifier, (Location, [Int.Type], Int.Type))
 
@@ -63,13 +66,13 @@ copContext (Int.AppCop _ _ args) = concat $ map patContext args
 copContext (Int.DesCop _ _ args inner) = concat [copContext inner, concat $ map patContext args]
 
 -- |A zipWithM that requires identical lengths.
-zipStrict :: Location -> Location -> (a -> b -> Either Error c) -> [a] -> [b] -> Either Error [c]
+zipStrict :: Location -> Location -> (a -> b -> Checker c) -> [a] -> [b] -> Checker [c]
 zipStrict loc _loc' f a b
   | length a == length b = zipWithM f a b
   | otherwise            = failAt loc "Length Mismatch"
 
 -- |Typecheck a pattern
-checkPat :: Program -> Ext.Pat -> Int.Type -> Either Error Int.Pat
+checkPat :: Program -> Ext.Pat -> Int.Type -> Checker Int.Pat
 checkPat _ (Ext.VarPat _loc name) t = return (Int.VarPat t name)
 checkPat p (Ext.ConPat loc name args) t = case find match (constructors p) of
     Just (Ext.ConSig loc' _ _ argTypes) ->
@@ -79,7 +82,7 @@ checkPat p (Ext.ConPat loc name args) t = case find match (constructors p) of
     match (Ext.ConSig _loc' returnType n _) = n == name && returnType == t
 
 -- |Typecheck a copattern. Takes hole type.
-checkCop :: Program -> Ext.Cop -> FunSig -> Either Error Int.Cop
+checkCop :: Program -> Ext.Cop -> FunSig -> Checker Int.Cop
 checkCop p (Ext.AppCop loc name args) (name', (loc', argTypes, returnType))
     | name == name' = do
         targs <- zipStrict loc loc' (checkPat p) args argTypes
@@ -103,7 +106,7 @@ copReturnType (Int.AppCop t _ _) = t
 copReturnType (Int.DesCop t _ _ _) = t
 
 -- |Typecheck a term.
-checkExp :: Program -> Context -> Ext.Exp -> Int.Type -> Either Error Int.Exp
+checkExp :: Program -> Context -> Ext.Exp -> Int.Type -> Checker Int.Exp
 checkExp _ c (Ext.VarExp loc n) t = case lookup n c of
     Just t' | t' == t   -> return (Int.VarExp t n)
             | otherwise -> failAt loc $ "Type Mismatch: " ++ n ++
@@ -131,7 +134,7 @@ checkExp p c (Ext.DesExp loc name args inner) t = case find match (destructors p
     match (Ext.DesSig _loc' r n a _) = n == name && r == t && length a == length args
 
 -- |Infer the type of a term.
-inferExp :: Program -> Context -> Ext.Exp -> Either Error Int.Exp
+inferExp :: Program -> Context -> Ext.Exp -> Checker Int.Exp
 inferExp _ context (Ext.VarExp loc name) = case lookup name context of
     Nothing  -> failAt loc "Unbound Variable"
     Just typ -> return (Int.VarExp typ name)
@@ -165,7 +168,7 @@ typeName :: Int.Type -> Identifier
 typeName (Int.Type n) = n
 
 -- |Typecheck a rule against the function's signature.
-checkRule :: Program -> FunSig -> Ext.Rule -> Either Error Int.Rule
+checkRule :: Program -> FunSig -> Ext.Rule -> Checker Int.Rule
 checkRule p s (Ext.Rule loc left right) = do
     tleft <- checkCop p left s
     let c = copContext tleft
@@ -177,7 +180,7 @@ checkRule p s (Ext.Rule loc left right) = do
         failAt loc "Shadowed Variable"
 
 -- |Fold to collect definitions.
-preCheckDef :: Program -> Ext.Def -> Either Error Program
+preCheckDef :: Program -> Ext.Def -> Checker Program
 preCheckDef prog@(Program names cons _ _ _) (Ext.DatDef loc name cons')
     | name `elem` names  = failAt loc "Shadowed Definition"
     | any mismatch cons' = failAt loc "Definition Mismatch"
@@ -208,7 +211,7 @@ preCheckDef prog@(Program _ _ _ funs rulz) (Ext.FunDef loc name argTypes returnT
     clash (name', _) = name' == name
 
 -- |Fold to typecheck definitions.
-postCheckDef :: Program -> Ext.Def -> Either Error Program
+postCheckDef :: Program -> Ext.Def -> Checker Program
 postCheckDef prog@(Program names _ _ _ _) (Ext.DatDef loc name cons')
     | any missing cons'  = failAt loc "Missing Definition"
     | otherwise          = return prog
@@ -230,11 +233,11 @@ postCheckDef prog@(Program _ _ _ _ rulz) (Ext.FunDef loc name argTypes returnTyp
             }
 
 -- |Fold to typecheck definitions.
-checkDef :: Program -> Ext.Def -> Either Error Program
+checkDef :: Program -> Ext.Def -> Checker Program
 checkDef prog def = preCheckDef prog def >>= (flip postCheckDef) def
 
 -- |Turn parser output into interpreter input.
-typecheck :: [Ext.Def] -> Either Error Int.Rules
+typecheck :: [Ext.Def] -> Checker Int.Rules
 typecheck defs = do
     pre  <- foldM preCheckDef emptyProgram defs
     prog <- foldM postCheckDef pre defs
