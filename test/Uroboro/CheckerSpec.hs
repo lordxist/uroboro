@@ -6,7 +6,6 @@ module Uroboro.CheckerSpec
     ) where
 
 import Control.Monad (foldM)
-import Data.Either (isRight)
 
 import Test.Hspec
 import Text.Parsec (parse)
@@ -54,6 +53,22 @@ p `shouldFail` part = case checkerEither p of
   Right  x               -> expectationFailure
     ("expected: \"... " ++ part ++ " ...\"\n but got: " ++ show x)
 
+-- |Assert success
+successfully :: Checker a -> IO a
+successfully p = case checkerEither p of
+  -- the "return undefined" is just for the type checker
+  -- (expectationFailure will throw an exception)
+  Left err -> expectationFailure (show err) >> return undefined
+  Right x  -> return x
+
+-- |Assert success
+successfully_ :: Checker a -> IO ()
+successfully_ p = case checkerEither p of
+  -- the "return undefined" is just for the type checker
+  -- (expectationFailure will throw an exception)
+  Left err -> expectationFailure (show err)
+  Right _  -> return ()
+
 spec :: Spec
 spec = do
     describe "too few arguments" $ do
@@ -81,10 +96,10 @@ spec = do
             foldM checkDef emptyProgram defs `shouldFail` "Shadowed Definition"
         it "allows data types" $ do
             x:_ <- parseString parseDef "data Int where zero(): Int"
-            checkDef emptyProgram x `shouldSatisfy` isRight
+            successfully_ $ checkDef emptyProgram x
         it "allows multiple arguments with the same type" $ do
             x:_ <- parseString parseDef "data A where a(A, A): A"
-            checkDef emptyProgram x `shouldSatisfy` isRight
+            successfully_ $ checkDef emptyProgram x
     describe "checkDef (codata)" $ do
         let stream = "codata StreamOfInt where StreamOfInt.head(): Int"
         it "prevents duplicates" $ do
@@ -95,35 +110,33 @@ spec = do
             checkDef emptyProgram x `shouldFail` "Missing Definition"
         it "allows codata types" $ do
             x:_ <- parseString parseDef stream
-            checkDef emptyProgram x `shouldSatisfy` isRight
+            successfully_ $ checkDef emptyProgram x
         it "allows multiple arguments with the same type" $ do
             x:_ <- parseString parseDef "codata A where A.a(A, A): A"
-            checkDef emptyProgram x `shouldSatisfy` isRight
+            successfully_ $ checkDef emptyProgram x
     describe "checkExp" $ do
         it "infers construction" $ do
             p <- prelude
             e <- parseString parseExp "empty()"
-            checkExp p [] e (Type "ListOfInt") `shouldSatisfy` (\x -> case x of
-              Right (ConExp (Type "ListOfInt") "empty" []) -> True
-              _ -> False)
+            t <- successfully $ checkExp p [] e (Type "ListOfInt")
+            t `shouldBe` ConExp (Type "ListOfInt") "empty" []
         it "infers applications" $ do
             p <- prelude
             e <- parseString parseExp "map(f, l)"
-            checkExp p c e (Type "ListOfInt") `shouldSatisfy` (\x -> case x of
-              Right (AppExp (Type "ListOfInt") "map"
-                [VarExp (Type "IntToInt") "f", VarExp (Type "ListOfInt") "l"]) -> True
-              _ -> False)
+            t <- successfully $ checkExp p c e (Type "ListOfInt")
+            t `shouldBe`
+              AppExp (Type "ListOfInt") "map"
+                [VarExp (Type "IntToInt") "f", VarExp (Type "ListOfInt") "l"]
     describe "inferPExp" $ do
         it "infers construction" $ do
             p <- prelude
             e <- parseString parseExp "empty()"
-            inferExp p [] e `shouldSatisfy` (\x -> case x of
-              Right (ConExp (Type "ListOfInt") "empty" []) -> True
-              _ -> False)
+            t <- successfully $ inferExp p [] e
+            t `shouldBe` ConExp (Type "ListOfInt") "empty" []
         it "infers applications" $ do
             p <- prelude
             e <- parseString parseExp "map(f, l)"
-            inferExp p c e `shouldSatisfy` (\x -> case x of
-              Right (AppExp (Type "ListOfInt") "map"
-                [VarExp (Type "IntToInt") "f", VarExp (Type "ListOfInt") "l"]) -> True
-              _ -> False)
+            t <- successfully $ inferExp p c e
+            t `shouldBe`
+              AppExp (Type "ListOfInt") "map"
+                [VarExp (Type "IntToInt") "f", VarExp (Type "ListOfInt") "l"]
