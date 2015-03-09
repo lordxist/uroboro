@@ -21,7 +21,7 @@ module Uroboro.Checker
     ) where
 
 import Control.Applicative
-import Control.Monad (foldM, zipWithM)
+import Control.Monad (when, foldM, zipWithM)
 import Data.List ((\\), find, nub, nubBy)
 
 import System.Exit (exitFailure)
@@ -219,27 +219,31 @@ checkRule p s (Ext.Rule loc left right) = do
 
 -- |Fold to collect definitions.
 preCheckDef :: Program -> Ext.Def -> Checker Program
-preCheckDef prog@(Program names cons _ _ _) (Ext.DatDef loc name cons')
-    | name `elem` names  = failAt loc "Shadowed Definition"
-    | any mismatch cons' = failAt loc "Definition Mismatch"
-    | otherwise          = return prog {
+preCheckDef prog@(Program names cons _ _ _) (Ext.DatDef loc name cons') = do
+    when (name `elem` names) $ do
+      failAt loc "Shadowed Definition"
+    when (any mismatch cons') $ do
+      failAt loc "Definition Mismatch"
+    return prog {
           typeNames = (name:names)
         , constructors = cons ++ cons'
         }
   where
     mismatch (Ext.ConSig _loc' returnType _ _) = returnType /= name
-preCheckDef prog@(Program names _ des _ _) (Ext.CodDef loc name des')
-    | name `elem` names = failAt loc "Shadowed Definition"
-    | any mismatch des' = failAt loc "Definition Mismatch"
-    | otherwise         = return prog {
+preCheckDef prog@(Program names _ des _ _) (Ext.CodDef loc name des') = do
+    when (name `elem` names) $ do
+      failAt loc "Shadowed Definition"
+    when (any mismatch des') $ do
+      failAt loc "Definition Mismatch"
+    return prog {
           typeNames = (name:names)
         , destructors = des ++ des'
         }
   where
     mismatch (Ext.DesSig _loc' _ _ _ innerType) = innerType /= name
-preCheckDef prog@(Program _ _ _ funs rulz) (Ext.FunDef loc name argTypes returnType _)
-    | any clash rulz     = failAt loc "Shadowed Definition"
-    | otherwise = do
+preCheckDef prog@(Program _ _ _ funs rulz) (Ext.FunDef loc name argTypes returnType _) = do
+        when (any clash rulz) $ do
+          failAt loc "Shadowed Definition"
         let sig = (name, (loc, argTypes, returnType))
         let recursive = prog {
               functions = (sig:funs)
@@ -250,16 +254,18 @@ preCheckDef prog@(Program _ _ _ funs rulz) (Ext.FunDef loc name argTypes returnT
 
 -- |Fold to typecheck definitions.
 postCheckDef :: Program -> Ext.Def -> Checker Program
-postCheckDef prog@(Program names _ _ _ _) (Ext.DatDef loc name cons')
-    | any missing cons'  = failAt loc "Missing Definition"
-    | otherwise          = return prog
+postCheckDef prog@(Program names _ _ _ _) (Ext.DatDef loc name cons') = do
+    when (any missing cons') $ do
+      failAt loc "Missing Definition"
+    return prog
   where
     missing (Ext.ConSig _loc' _ _ args)        = (nub args) \\ (name:names) /= []
-postCheckDef prog@(Program names _ _ _ _) (Ext.CodDef loc name des')
-    | any missing des'  = failAt loc $
+postCheckDef prog@(Program names _ _ _ _) (Ext.CodDef loc name des') = do
+    when (any missing des') $ do
+      failAt loc $
         "Missing Definition: " ++ typeName name ++
         " has a destructor with an unknown argument type"
-    | otherwise         = return prog
+    return prog
   where
     missing (Ext.DesSig _loc' _ _ args _)       = (nub args) \\ (name:names) /= []
 postCheckDef prog@(Program _ _ _ _ rulz) (Ext.FunDef loc name argTypes returnType rs)
