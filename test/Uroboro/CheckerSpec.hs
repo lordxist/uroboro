@@ -12,10 +12,10 @@ import Paths_uroboro (getDataFileName)
 import Uroboro.Checker
     ( Checker
     , checkerEither
+    , setProgram
     , checkExp
     , typecheck
     , Context
-    , emptyProgram
     , inferExp
     , Program
     )
@@ -30,7 +30,7 @@ prelude = do
     input <- readFile fname
     case parse parseDef fname input of
         Left msg -> fail $ "Parser: " ++ show msg
-        Right defs -> case checkerEither (typecheck emptyProgram defs) of
+        Right defs -> case checkerEither (typecheck defs) of
             Left _ -> fail "Checker"
             Right p -> return p
 
@@ -73,55 +73,55 @@ spec = do
         it "constructors" $ do
             p <- prelude
             e <- parseString parseExp "succ()"
-            checkExp p [] e (Type "Int") `shouldFail` "Length Mismatch"
+            (setProgram p >> checkExp [] e (Type "Int")) `shouldFail` "Length Mismatch"
         it "calls (data)" $ do
             p <- prelude
             e <- parseString parseExp "map()"
-            checkExp p [] e (Type "ListOfInt") `shouldFail` "Length Mismatch"
+            (setProgram p >> checkExp [] e (Type "ListOfInt")) `shouldFail` "Length Mismatch"
         it "calls (codata)" $ do
             p <- prelude
             e <- parseString parseExp "mapStream().head()"
-            checkExp p [] e (Type "StreamOfInt") `shouldFail` ""
+            (setProgram p >> checkExp [] e (Type "StreamOfInt")) `shouldFail` ""
     describe "checkPT (data)" $ do
         it "checks return types" $ do
             defs <- parseString parseDef "data Int where zero(): Float"
-            typecheck emptyProgram defs `shouldFail` "Definition Mismatch"
+            typecheck defs `shouldFail` "Definition Mismatch"
         it "prevents duplicates" $ do
             defs <- parseString parseDef $ unlines
                 [ "data Int where zero(): Int"
                 , "data Int where succ(): Int"
                 ]
-            typecheck emptyProgram defs `shouldFail` "Shadowed Definition"
+            typecheck defs `shouldFail` "Shadowed Definition"
         it "allows data types" $ do
             defs <- parseString parseDef "data Int where zero(): Int"
-            successfully_ $ typecheck emptyProgram defs
+            successfully_ $ typecheck defs
         it "allows multiple arguments with the same type" $ do
             defs <- parseString parseDef "data A where a(A, A): A"
-            successfully_ $ typecheck emptyProgram defs
+            successfully_ $ typecheck defs
     describe "checkDef (codata)" $ do
         let stream = "codata StreamOfInt where StreamOfInt.head(): Int"
         it "prevents duplicates" $ do
             defs <- parseString parseDef $ unlines [stream, stream]
-            typecheck emptyProgram defs `shouldFail` "Shadowed Definition"
+            typecheck defs `shouldFail` "Shadowed Definition"
         it "checks argument types" $ do
             defs <- parseString parseDef "codata IntToInt where IntToInt.apply(Int): Int"
-            typecheck emptyProgram defs `shouldFail` "Missing Definition"
+            typecheck defs `shouldFail` "Missing Definition"
         it "allows codata types" $ do
             defs <- parseString parseDef stream
-            successfully_ $ typecheck emptyProgram defs
+            successfully_ $ typecheck defs
         it "allows multiple arguments with the same type" $ do
             defs <- parseString parseDef "codata A where A.a(A, A): A"
-            successfully_ $ typecheck emptyProgram defs
+            successfully_ $ typecheck defs
     describe "checkExp" $ do
         it "infers construction" $ do
             p <- prelude
             e <- parseString parseExp "empty()"
-            t <- successfully $ checkExp p [] e (Type "ListOfInt")
+            t <- successfully $ setProgram p >> checkExp [] e (Type "ListOfInt")
             t `shouldBe` ConExp (Type "ListOfInt") "empty" []
         it "infers applications" $ do
             p <- prelude
             e <- parseString parseExp "map(f, l)"
-            t <- successfully $ checkExp p c e (Type "ListOfInt")
+            t <- successfully $ setProgram p >> checkExp c e (Type "ListOfInt")
             t `shouldBe`
               AppExp (Type "ListOfInt") "map"
                 [VarExp (Type "IntToInt") "f", VarExp (Type "ListOfInt") "l"]
@@ -129,12 +129,12 @@ spec = do
         it "infers construction" $ do
             p <- prelude
             e <- parseString parseExp "empty()"
-            t <- successfully $ inferExp p [] e
+            t <- successfully $ setProgram p >> inferExp [] e
             t `shouldBe` ConExp (Type "ListOfInt") "empty" []
         it "infers applications" $ do
             p <- prelude
             e <- parseString parseExp "map(f, l)"
-            t <- successfully $ inferExp p c e
+            t <- successfully $ setProgram p >> inferExp c e
             t `shouldBe`
               AppExp (Type "ListOfInt") "map"
                 [VarExp (Type "IntToInt") "f", VarExp (Type "ListOfInt") "l"]

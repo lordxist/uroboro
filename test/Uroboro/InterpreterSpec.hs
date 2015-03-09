@@ -5,7 +5,7 @@ module Uroboro.InterpreterSpec
 
 import Test.Hspec
 
-import Uroboro.Checker (checkerEither, inferExp, rules)
+import Uroboro.Checker (setProgram, checkerEither, inferExp, rules)
 import Uroboro.CheckerSpec (prelude)
 import Uroboro.Interpreter (pmatch, eval)
 import Uroboro.Parser (parseExp)
@@ -17,7 +17,7 @@ main :: String -> IO Exp
 main input = do
     pexp <- parseString parseExp input
     prog <- prelude
-    case checkerEither (inferExp prog [] pexp) of
+    case checkerEither (setProgram prog >> inferExp [] pexp) of
         Left msg -> fail $ "Checker:" ++ show msg
         Right texp -> return texp
 
