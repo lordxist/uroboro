@@ -4,26 +4,14 @@ module Uroboro.InterpreterSpec
     ) where
 
 import Test.Hspec
-import Text.Parsec (parse)
 
-import Paths_uroboro (getDataFileName)
-import Uroboro.Checker (checkerEither, typecheck, inferExp)
+import Uroboro.Checker (checkerEither, inferExp, rules)
 import Uroboro.CheckerSpec (prelude)
 import Uroboro.Interpreter (pmatch, eval)
-import Uroboro.Parser (parseDef, parseExp)
+import Uroboro.Parser (parseExp)
 import Uroboro.Tree.Internal
 
 import Utils (parseString)
-
-rules :: IO Rules
-rules = do
-    fname <- getDataFileName "samples/prelude.uro"
-    input <- readFile fname
-    case parse parseDef fname input of
-        Left _ -> fail "Parser"
-        Right defs -> case checkerEither (typecheck defs) of
-            Left _ -> fail "Checker"
-            Right p -> return p
 
 main :: String -> IO Exp
 main input = do
@@ -44,27 +32,27 @@ spec = do
             pmatch term (VarPat t name) `shouldBe` Right [(name, term)]
     describe "eval" $ do
         it "completes" $ do
-            p <- rules
+            p <- fmap rules prelude
             m <- main "add(zero(), succ(zero()))"
             eval p m `shouldBe` ConExp int "succ" [ConExp int "zero" []]
         it "can run add1(0)" $ do
-            p <- rules
+            p <- fmap rules prelude
             m <- main "add1().apply1(zero())"
             r <- main "succ(zero())"
             eval p m `shouldBe` r
         it "can run add1(1)" $ do
-            p <- rules
+            p <- fmap rules prelude
             m <- main "add1().apply1(succ(zero()))"
             r <- main "succ(succ(zero()))"
             eval p m `shouldBe` r
         it "matches manual reduction" $ do
-            p <- rules
+            p <- fmap rules prelude
             m <- main "map(add1(), cons(succ(zero()), cons(zero(), empty())))"
             r <- main "cons(succ(succ(zero())), cons(succ(zero()), empty()))"
             eval p m `shouldBe` r
     describe "prelude" $ do
         it "adder works" $ do
-            p <- rules
+            p <- fmap rules prelude
             m <- main "map(adder(succ(zero())), cons(succ(zero()), cons(zero(), empty())))"
             r <- main "cons(succ(succ(zero())), cons(succ(zero()), empty()))"
             eval p m `shouldBe` r

@@ -12,9 +12,6 @@ module Uroboro.Checker
     , checkerIO
       -- * Type checking
     , checkExp
-    , preCheckDef
-    , postCheckDef
-    , checkDef
     , Context
     , emptyProgram
     , inferExp
@@ -273,13 +270,9 @@ postCheckDef prog@(Program _ _ _ _ rulz) (Ext.FunDef loc name argTypes returnTyp
               rules = ((name, trs):rulz)
             }
 
--- |Fold to typecheck definitions.
-checkDef :: Program -> Ext.Def -> Checker Program
-checkDef prog def = preCheckDef prog def >>= (flip postCheckDef) def
-
 -- |Turn parser output into interpreter input.
-typecheck :: [Ext.Def] -> Checker Int.Rules
-typecheck defs = do
-    pre  <- foldM preCheckDef emptyProgram defs
-    prog <- foldM postCheckDef pre defs
-    return $ rules prog
+typecheck :: Program -> [Ext.Def] -> Checker Program
+typecheck prog defs = do
+    pre  <- foldM preCheckDef prog defs
+    post <- foldM postCheckDef pre defs
+    return post

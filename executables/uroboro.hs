@@ -16,8 +16,6 @@ import System.Exit (exitFailure)
 
 import Uroboro.Checker
     ( checkerIO
-    , preCheckDef
-    , postCheckDef
     , typecheck
     , emptyProgram
     , inferExp
@@ -64,15 +62,13 @@ main = do
         Evaluate paths input -> do
             defs  <- parseFiles paths
             pexp  <- eitherIO $ parseExpression "command line" input
-
-            pre  <- checkerIO $ foldM preCheckDef emptyProgram defs
-            prog <- checkerIO $ foldM postCheckDef pre defs
+            prog  <- checkerIO $ typecheck emptyProgram defs
             texp  <- checkerIO $ inferExp prog [] pexp
 
             putStrLn (render $ eval (rules prog) texp)
         Typecheck paths -> do
             defs  <- parseFiles paths
-            checkerIO $ void (typecheck defs)
+            checkerIO $ void (typecheck emptyProgram defs)
         Help -> do
             putStrLn "USAGE: uroboro FILES [-- EXPRESSION]"
             exitFailure

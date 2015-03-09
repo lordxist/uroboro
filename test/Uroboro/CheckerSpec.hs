@@ -5,8 +5,6 @@ module Uroboro.CheckerSpec
     , shouldFail
     ) where
 
-import Control.Monad (foldM)
-
 import Test.Hspec
 import Text.Parsec (parse)
 
@@ -15,7 +13,7 @@ import Uroboro.Checker
     ( Checker
     , checkerEither
     , checkExp
-    , checkDef
+    , typecheck
     , Context
     , emptyProgram
     , inferExp
@@ -32,7 +30,7 @@ prelude = do
     input <- readFile fname
     case parse parseDef fname input of
         Left msg -> fail $ "Parser: " ++ show msg
-        Right defs -> case checkerEither (foldM checkDef emptyProgram defs) of
+        Right defs -> case checkerEither (typecheck emptyProgram defs) of
             Left _ -> fail "Checker"
             Right p -> return p
 
@@ -86,34 +84,34 @@ spec = do
             checkExp p [] e (Type "StreamOfInt") `shouldFail` ""
     describe "checkPT (data)" $ do
         it "checks return types" $ do
-            x:_ <- parseString parseDef "data Int where zero(): Float"
-            checkDef emptyProgram x `shouldFail` "Definition Mismatch"
+            defs <- parseString parseDef "data Int where zero(): Float"
+            typecheck emptyProgram defs `shouldFail` "Definition Mismatch"
         it "prevents duplicates" $ do
             defs <- parseString parseDef $ unlines
                 [ "data Int where zero(): Int"
                 , "data Int where succ(): Int"
                 ]
-            foldM checkDef emptyProgram defs `shouldFail` "Shadowed Definition"
+            typecheck emptyProgram defs `shouldFail` "Shadowed Definition"
         it "allows data types" $ do
-            x:_ <- parseString parseDef "data Int where zero(): Int"
-            successfully_ $ checkDef emptyProgram x
+            defs <- parseString parseDef "data Int where zero(): Int"
+            successfully_ $ typecheck emptyProgram defs
         it "allows multiple arguments with the same type" $ do
-            x:_ <- parseString parseDef "data A where a(A, A): A"
-            successfully_ $ checkDef emptyProgram x
+            defs <- parseString parseDef "data A where a(A, A): A"
+            successfully_ $ typecheck emptyProgram defs
     describe "checkDef (codata)" $ do
         let stream = "codata StreamOfInt where StreamOfInt.head(): Int"
         it "prevents duplicates" $ do
             defs <- parseString parseDef $ unlines [stream, stream]
-            foldM checkDef emptyProgram defs `shouldFail` "Shadowed Definition"
+            typecheck emptyProgram defs `shouldFail` "Shadowed Definition"
         it "checks argument types" $ do
-            x:_ <- parseString parseDef "codata IntToInt where IntToInt.apply(Int): Int"
-            checkDef emptyProgram x `shouldFail` "Missing Definition"
+            defs <- parseString parseDef "codata IntToInt where IntToInt.apply(Int): Int"
+            typecheck emptyProgram defs `shouldFail` "Missing Definition"
         it "allows codata types" $ do
-            x:_ <- parseString parseDef stream
-            successfully_ $ checkDef emptyProgram x
+            defs <- parseString parseDef stream
+            successfully_ $ typecheck emptyProgram defs
         it "allows multiple arguments with the same type" $ do
-            x:_ <- parseString parseDef "codata A where A.a(A, A): A"
-            successfully_ $ checkDef emptyProgram x
+            defs <- parseString parseDef "codata A where A.a(A, A): A"
+            successfully_ $ typecheck emptyProgram defs
     describe "checkExp" $ do
         it "infers construction" $ do
             p <- prelude
