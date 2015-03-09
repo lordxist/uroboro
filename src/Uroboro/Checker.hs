@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+
 {-|
 Description : Typechecker
 
@@ -21,6 +23,7 @@ module Uroboro.Checker
     , typecheck
     ) where
 
+import Control.Applicative
 import Control.Monad (foldM, zipWithM)
 import Data.List ((\\), find, nub, nubBy)
 
@@ -33,23 +36,39 @@ import qualified Uroboro.Tree.Internal as Int
 import qualified Uroboro.Tree.External as Ext
 
 -- |Checker monad.
-type Checker = Either Error
+newtype Checker a = Checker {
+    runChecker :: forall r . (Error -> r) -> (a -> r) -> r
+  }
+
+instance Functor Checker where
+  fmap f p = Checker (\e k -> runChecker p e (\a -> k (f a)))
+
+instance Applicative Checker where
+  pure a = Checker (\_ k -> k a)
+  p <*> q =
+    Checker (\e k ->
+      runChecker p e (\f ->
+        runChecker q e (\a ->
+          k (f a))))
+
+instance Monad Checker where
+  return a = Checker (\_ k -> k a)
+  p >>= f =
+    Checker (\e k ->
+      runChecker p e (\a ->
+      runChecker (f a) e k))
 
 -- |On error, print it and set the exit code.
 checkerIO :: Checker a -> IO a
-checkerIO (Left e)  = do
-    print e
-    exitFailure
-checkerIO (Right b) = return b
+checkerIO p = runChecker p (\e -> print e >> exitFailure) return
 
 -- |On error, return left.
 checkerEither :: Checker a -> Either Error a
-checkerEither (Left e)  = Left e
-checkerEither (Right b) = return b
+checkerEither p = runChecker p Left Right
 
 -- |Fail the monad, but with location.
 failAt :: Location -> String -> Checker a
-failAt location message = Left (MakeError location message)
+failAt location message = Checker (\e _ -> e (MakeError location message))
 
 -- |Signature of a function definition.
 type FunSig = (Identifier, (Location, [Int.Type], Int.Type))
