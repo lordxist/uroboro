@@ -7,7 +7,7 @@ import Test.Hspec
 import Text.Parsec (parse)
 
 import Paths_uroboro (getDataFileName)
-import Uroboro.Checker (typecheck, inferExp)
+import Uroboro.Checker (checkerEither, typecheck, inferExp)
 import Uroboro.CheckerSpec (prelude)
 import Uroboro.Interpreter (pmatch, eval)
 import Uroboro.Parser (parseDef, parseExp)
@@ -21,7 +21,7 @@ rules = do
     input <- readFile fname
     case parse parseDef fname input of
         Left _ -> fail "Parser"
-        Right defs -> case typecheck defs of
+        Right defs -> case checkerEither (typecheck defs) of
             Left _ -> fail "Checker"
             Right p -> return p
 
@@ -29,7 +29,7 @@ main :: String -> IO Exp
 main input = do
     pexp <- parseString parseExp input
     prog <- prelude
-    case inferExp prog [] pexp of
+    case checkerEither (inferExp prog [] pexp) of
         Left msg -> fail $ "Checker:" ++ show msg
         Right texp -> return texp
 

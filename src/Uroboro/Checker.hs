@@ -6,6 +6,7 @@ Typecheck parser output, which turns it into interpreter input.
 module Uroboro.Checker
     ( -- * Type checking monad
       Checker
+    , checkerEither
     , checkerIO
       -- * Type checking
     , checkExp
@@ -40,6 +41,11 @@ checkerIO (Left e)  = do
     print e
     exitFailure
 checkerIO (Right b) = return b
+
+-- |On error, return left.
+checkerEither :: Checker a -> Either Error a
+checkerEither (Left e)  = Left e
+checkerEither (Right b) = return b
 
 -- |Fail the monad, but with location.
 failAt :: Location -> String -> Checker a

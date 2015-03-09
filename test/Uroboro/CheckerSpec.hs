@@ -13,8 +13,9 @@ import Text.Parsec (parse)
 
 import Paths_uroboro (getDataFileName)
 import Uroboro.Checker
-    (
-      checkExp
+    ( Checker
+    , checkerEither
+    , checkExp
     , checkDef
     , Context
     , emptyProgram
@@ -32,7 +33,7 @@ prelude = do
     input <- readFile fname
     case parse parseDef fname input of
         Left msg -> fail $ "Parser: " ++ show msg
-        Right defs -> case foldM checkDef emptyProgram defs of
+        Right defs -> case checkerEither (foldM checkDef emptyProgram defs) of
             Left _ -> fail "Checker"
             Right p -> return p
 
@@ -47,9 +48,10 @@ c = [
     ]
 
 -- |Assert error message
-shouldFail :: Show a => Either Error a -> String -> Expectation
-Left (MakeError _ msg) `shouldFail` prefix = takeWhile (/= ':') msg `shouldBe` prefix
-Right  x `shouldFail` prefix = expectationFailure
+shouldFail :: Show a => Checker a -> String -> Expectation
+p `shouldFail` prefix = case checkerEither p of
+  Left (MakeError _ msg) -> takeWhile (/= ':') msg `shouldBe` prefix
+  Right  x               -> expectationFailure
     ("expected: " ++ prefix ++ "\n but got: " ++ show x)
 
 spec :: Spec
