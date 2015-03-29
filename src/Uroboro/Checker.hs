@@ -141,16 +141,18 @@ inferCop (Ext.AppCop loc name args) (name', (loc', argTypes, returnType))
     | otherwise     = failAt loc $
         "Definition Mismatch: " ++ name ++ " used in copattern for " ++ name'
 inferCop (Ext.DesCop loc name args inner) s = do
-    tinner <- inferCop inner s
     p <- getProgram
-    case find (match (Ext.returnType tinner)) (destructors p) of
+    case find match (destructors p) of
         Nothing -> failAt loc $
-            "Missing Definition: " ++ (typeName $ Ext.returnType tinner) ++ "." ++ name
-        Just (Ext.DesSig loc' returnType _ argTypes _) -> do
+            "Missing Definition: " ++ name
+        Just (Ext.DesSig loc' returnType _ argTypes innerType) -> do
+            tinner <- inferCop inner s
+            when (Ext.returnType tinner /= innerType) $ do
+              failAt loc $ "Missing Definition"
             targs <- zipStrict loc loc' checkPat args argTypes
             return $ Int.DesCop returnType name targs tinner
   where
-    match t (Ext.DesSig _loc' _ n _ innerType) = n == name && innerType == t
+    match (Ext.DesSig _loc' _ n _ _) = n == name
 
 -- |Typecheck a term.
 checkExp :: Context -> Ext.Exp -> Int.Type -> Checker Int.Exp
