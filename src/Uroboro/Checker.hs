@@ -202,14 +202,14 @@ inferExp c (Ext.AppExp loc name args) = do
     match (Ext.ConSig _loc' _ n _) = n == name
 inferExp c (Ext.DesExp loc name args inner) = do
     p <- getProgram
-    tinner <- inferExp c inner
-    case find (match (Ext.returnType tinner)) (destructors p) of
+    case find match (destructors p) of
         Nothing -> failAt loc "Missing Definition"
-        Just (Ext.DesSig loc' returnType _ argTypes _) -> do
+        Just (Ext.DesSig loc' returnType _ argTypes innerType) -> do
+            tinner <- checkExp c inner innerType
             targs <- zipStrict loc loc' (checkExp c) args argTypes
             return $ Int.DesExp returnType name targs tinner
   where
-    match t' (Ext.DesSig _loc' _ n _ t) = n == name && t == t'
+    match (Ext.DesSig _loc' _ n _ _) = n == name
 
 -- |Identify a type to the user.
 typeName :: Int.Type -> Identifier
