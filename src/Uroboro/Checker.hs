@@ -95,6 +95,24 @@ data Program = Program {
 emptyProgram :: Program
 emptyProgram = Program [] [] [] [] []
 
+-- |Check that a constructor exists and return its signature.
+inferCon :: Location -> Identifier -> Checker Ext.ConSig
+inferCon loc name = do
+  p <- getProgram
+  case find match (constructors p) of
+    Just consig -> return consig
+    Nothing -> failAt loc "Missing Definition"
+  where
+    match (Ext.ConSig _loc' _ n _) = n == name
+
+-- |Check that a constructor for a given type exists and return its signature.
+checkCon :: Location -> Identifier -> Int.Type -> Checker Ext.ConSig
+checkCon loc name t = do
+  consig <- inferCon loc name
+  when (Ext.returnType consig /= t) $ do
+    failAt loc "Missing Definition"
+  return consig
+
 -- |Types of the variables bound in a pattern.
 type Context = [(Int.Identifier, Int.Type)]
 
@@ -124,13 +142,8 @@ zipStrict loc _loc' f a b
 checkPat :: Ext.Pat -> Int.Type -> Checker Int.Pat
 checkPat (Ext.VarPat _loc name) t = return (Int.VarPat t name)
 checkPat (Ext.ConPat loc name args) t = do
-  p <- getProgram
-  case find match (constructors p) of
-    Just (Ext.ConSig loc' _ _ argTypes) ->
+        Ext.ConSig loc' _ _ argTypes <- checkCon loc name t
         zipStrict loc loc' checkPat args argTypes >>= return . Int.ConPat t name
-    Nothing -> failAt loc "Missing Definition"
-  where
-    match (Ext.ConSig _loc' returnType n _) = n == name && returnType == t
 
 -- |Typecheck a copattern. Takes hole type.
 inferCop :: Ext.Cop -> FunSig -> Checker Int.Cop
@@ -186,13 +199,9 @@ checkExp c (Ext.AppExp loc name args) t = do
     Just (loc', argTypes, returnType) | returnType == t ->
                 zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.AppExp returnType name
         | otherwise -> failAt loc "Type Mismatch"
-    Nothing -> case find match (constructors p) of
-        Just (Ext.ConSig loc' _ _ argTypes) ->
+    Nothing -> do
+            Ext.ConSig loc' _ _ argTypes <- checkCon loc name t
             zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.ConExp t name
-        Nothing -> failAt loc $
-            "Missing Definition: " ++ name ++ " does not construct a " ++ typeName t
-  where
-    match (Ext.ConSig _loc' returnType n _) = n == name && returnType == t
 checkExp c (Ext.DesExp loc name args inner) t = do
   p <- getProgram
   case find match (destructors p) of
@@ -215,12 +224,9 @@ inferExp c (Ext.AppExp loc name args) = do
   case lookup name (functions p) of
     Just (loc', argTypes, returnType) ->
         zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.AppExp returnType name
-    Nothing -> case find match (constructors p) of
-        Just (Ext.ConSig loc' returnType _ argTypes) ->
+    Nothing -> do
+            Ext.ConSig loc' returnType _ argTypes <- inferCon loc name
             zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.ConExp returnType name
-        Nothing -> failAt loc "Missing Definition"
-  where
-    match (Ext.ConSig _loc' _ n _) = n == name
 inferExp c (Ext.DesExp loc name args inner) = do
     p <- getProgram
     case find match (destructors p) of
