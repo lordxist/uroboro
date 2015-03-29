@@ -133,15 +133,15 @@ checkPat (Ext.ConPat loc name args) t = do
     match (Ext.ConSig _loc' returnType n _) = n == name && returnType == t
 
 -- |Typecheck a copattern. Takes hole type.
-checkCop :: Ext.Cop -> FunSig -> Checker Int.Cop
-checkCop (Ext.AppCop loc name args) (name', (loc', argTypes, returnType))
+inferCop :: Ext.Cop -> FunSig -> Checker Int.Cop
+inferCop (Ext.AppCop loc name args) (name', (loc', argTypes, returnType))
     | name == name' = do
         targs <- zipStrict loc loc' checkPat args argTypes
         return $ Int.AppCop returnType name targs
     | otherwise     = failAt loc $
         "Definition Mismatch: " ++ name ++ " used in copattern for " ++ name'
-checkCop (Ext.DesCop loc name args inner) s = do
-    tinner <- checkCop inner s
+inferCop (Ext.DesCop loc name args inner) s = do
+    tinner <- inferCop inner s
     p <- getProgram
     case find (match (Ext.returnType tinner)) (destructors p) of
         Nothing -> failAt loc $
@@ -218,7 +218,7 @@ typeName (Int.Type n) = n
 -- |Typecheck a rule against the function's signature.
 checkRule :: FunSig -> Ext.Rule -> Checker Int.Rule
 checkRule s (Ext.Rule loc left right) = do
-    tleft <- checkCop left s
+    tleft <- inferCop left s
     let c = copContext tleft
     tright <- checkExp c right (Ext.returnType tleft)
     let d = nubContext c
