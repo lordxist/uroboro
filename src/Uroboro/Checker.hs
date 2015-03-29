@@ -146,9 +146,28 @@ inferCop (Ext.DesCop loc name args inner) s = do
         Nothing -> failAt loc $
             "Missing Definition: " ++ name
         Just (Ext.DesSig loc' returnType _ argTypes innerType) -> do
-            tinner <- inferCop inner s
-            when (Ext.returnType tinner /= innerType) $ do
+            tinner <- checkCop inner s innerType
+            targs <- zipStrict loc loc' checkPat args argTypes
+            return $ Int.DesCop returnType name targs tinner
+  where
+    match (Ext.DesSig _loc' _ n _ _) = n == name
+
+-- |Typecheck a copattern. Takes hole type and expected return type.
+checkCop :: Ext.Cop -> FunSig -> Int.Type -> Checker Int.Cop
+checkCop (Ext.AppCop loc name args) (name', (loc', argTypes, returnType)) t
+    | name == name', returnType == t = do
+        targs <- zipStrict loc loc' checkPat args argTypes
+        return $ Int.AppCop returnType name targs
+    | otherwise     = failAt loc "Definition Mismatch"
+checkCop (Ext.DesCop loc name args inner) s t = do
+    p <- getProgram
+    case find match (destructors p) of
+        Nothing -> failAt loc $
+            "Missing Definition: " ++ name
+        Just (Ext.DesSig loc' returnType _ argTypes innerType) -> do
+            when (returnType /= t) $ do
               failAt loc $ "Missing Definition"
+            tinner <- checkCop inner s t
             targs <- zipStrict loc loc' checkPat args argTypes
             return $ Int.DesCop returnType name targs tinner
   where
