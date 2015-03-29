@@ -160,8 +160,8 @@ zipStrict loc _loc' f a b
 checkPat :: Ext.Pat -> Int.Type -> Checker Int.Pat
 checkPat (Ext.VarPat _loc name) t = return (Int.VarPat t name)
 checkPat (Ext.ConPat loc name args) t = do
-        Ext.ConSig loc' _ _ argTypes <- checkCon loc name t
-        zipStrict loc loc' checkPat args argTypes >>= return . Int.ConPat t name
+  Ext.ConSig loc' _ _ argTypes <- checkCon loc name t
+  zipStrict loc loc' checkPat args argTypes >>= return . Int.ConPat t name
 
 -- |Typecheck a copattern. Takes hole type.
 inferCop :: Ext.Cop -> FunSig -> Checker Int.Cop
@@ -172,10 +172,10 @@ inferCop (Ext.AppCop loc name args) (name', (loc', argTypes, returnType))
     | otherwise     = failAt loc $
         "Definition Mismatch: " ++ name ++ " used in copattern for " ++ name'
 inferCop (Ext.DesCop loc name args inner) s = do
-            Ext.DesSig loc' returnType _ argTypes innerType <- inferDes loc name
-            tinner <- checkCop inner s innerType
-            targs <- zipStrict loc loc' checkPat args argTypes
-            return $ Int.DesCop returnType name targs tinner
+  Ext.DesSig loc' returnType _ argTypes innerType <- inferDes loc name
+  tinner <- checkCop inner s innerType
+  targs <- zipStrict loc loc' checkPat args argTypes
+  return $ Int.DesCop returnType name targs tinner
 
 -- |Typecheck a copattern. Takes hole type and expected return type.
 checkCop :: Ext.Cop -> FunSig -> Int.Type -> Checker Int.Cop
@@ -185,10 +185,10 @@ checkCop (Ext.AppCop loc name args) (name', (loc', argTypes, returnType)) t
         return $ Int.AppCop returnType name targs
     | otherwise     = failAt loc "Definition Mismatch"
 checkCop (Ext.DesCop loc name args inner) s t = do
-            Ext.DesSig loc' returnType _ argTypes innerType <- checkDes loc name t
-            tinner <- checkCop inner s t
-            targs <- zipStrict loc loc' checkPat args argTypes
-            return $ Int.DesCop returnType name targs tinner
+  Ext.DesSig loc' returnType _ argTypes innerType <- checkDes loc name t
+  tinner <- checkCop inner s t
+  targs <- zipStrict loc loc' checkPat args argTypes
+  return $ Int.DesCop returnType name targs tinner
 
 -- |Typecheck a term.
 checkExp :: Context -> Ext.Exp -> Int.Type -> Checker Int.Exp
@@ -204,13 +204,13 @@ checkExp c (Ext.AppExp loc name args) t = do
                 zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.AppExp returnType name
         | otherwise -> failAt loc "Type Mismatch"
     Nothing -> do
-            Ext.ConSig loc' _ _ argTypes <- checkCon loc name t
-            zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.ConExp t name
+      Ext.ConSig loc' _ _ argTypes <- checkCon loc name t
+      zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.ConExp t name
 checkExp c (Ext.DesExp loc name args inner) t = do
-        Ext.DesSig loc' _ _ argTypes innerType <- checkDes loc name t
-        tinner <- checkExp c inner innerType
-        targs <- zipStrict loc loc' (checkExp c) args argTypes
-        return $ Int.DesExp t name targs tinner
+  Ext.DesSig loc' _ _ argTypes innerType <- checkDes loc name t
+  tinner <- checkExp c inner innerType
+  targs <- zipStrict loc loc' (checkExp c) args argTypes
+  return $ Int.DesExp t name targs tinner
 
 -- |Infer the type of a term.
 inferExp :: Context -> Ext.Exp -> Checker Int.Exp
@@ -223,13 +223,13 @@ inferExp c (Ext.AppExp loc name args) = do
     Just (loc', argTypes, returnType) ->
         zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.AppExp returnType name
     Nothing -> do
-            Ext.ConSig loc' returnType _ argTypes <- inferCon loc name
-            zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.ConExp returnType name
+      Ext.ConSig loc' returnType _ argTypes <- inferCon loc name
+      zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.ConExp returnType name
 inferExp c (Ext.DesExp loc name args inner) = do
-            Ext.DesSig loc' returnType _ argTypes innerType <- inferDes loc name
-            tinner <- checkExp c inner innerType
-            targs <- zipStrict loc loc' (checkExp c) args argTypes
-            return $ Int.DesExp returnType name targs tinner
+  Ext.DesSig loc' returnType _ argTypes innerType <- inferDes loc name
+  tinner <- checkExp c inner innerType
+  targs <- zipStrict loc loc' (checkExp c) args argTypes
+  return $ Int.DesExp returnType name targs tinner
 
 -- |Identify a type to the user.
 typeName :: Int.Type -> Identifier
