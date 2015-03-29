@@ -113,6 +113,24 @@ checkCon loc name t = do
     failAt loc "Missing Definition"
   return consig
 
+-- |Check that a destructor exists and return its signature.
+inferDes :: Location -> Identifier -> Checker Ext.DesSig
+inferDes loc name = do
+  p <- getProgram
+  case find match (destructors p) of
+    Just dessig -> return dessig
+    Nothing -> failAt loc "Missing Definition"
+  where
+    match (Ext.DesSig _loc' _ n _ _) = n == name
+
+-- |Check that a destructor (with given codomain) exists and return its signature.
+checkDes :: Location -> Identifier -> Int.Type -> Checker Ext.DesSig
+checkDes loc name t = do
+  dessig <- inferDes loc name
+  when (Ext.returnType dessig /= t) $ do
+    failAt loc "Missing Definition"
+  return dessig
+
 -- |Types of the variables bound in a pattern.
 type Context = [(Int.Identifier, Int.Type)]
 
@@ -154,16 +172,10 @@ inferCop (Ext.AppCop loc name args) (name', (loc', argTypes, returnType))
     | otherwise     = failAt loc $
         "Definition Mismatch: " ++ name ++ " used in copattern for " ++ name'
 inferCop (Ext.DesCop loc name args inner) s = do
-    p <- getProgram
-    case find match (destructors p) of
-        Nothing -> failAt loc $
-            "Missing Definition: " ++ name
-        Just (Ext.DesSig loc' returnType _ argTypes innerType) -> do
+            Ext.DesSig loc' returnType _ argTypes innerType <- inferDes loc name
             tinner <- checkCop inner s innerType
             targs <- zipStrict loc loc' checkPat args argTypes
             return $ Int.DesCop returnType name targs tinner
-  where
-    match (Ext.DesSig _loc' _ n _ _) = n == name
 
 -- |Typecheck a copattern. Takes hole type and expected return type.
 checkCop :: Ext.Cop -> FunSig -> Int.Type -> Checker Int.Cop
@@ -173,18 +185,10 @@ checkCop (Ext.AppCop loc name args) (name', (loc', argTypes, returnType)) t
         return $ Int.AppCop returnType name targs
     | otherwise     = failAt loc "Definition Mismatch"
 checkCop (Ext.DesCop loc name args inner) s t = do
-    p <- getProgram
-    case find match (destructors p) of
-        Nothing -> failAt loc $
-            "Missing Definition: " ++ name
-        Just (Ext.DesSig loc' returnType _ argTypes innerType) -> do
-            when (returnType /= t) $ do
-              failAt loc $ "Missing Definition"
+            Ext.DesSig loc' returnType _ argTypes innerType <- checkDes loc name t
             tinner <- checkCop inner s t
             targs <- zipStrict loc loc' checkPat args argTypes
             return $ Int.DesCop returnType name targs tinner
-  where
-    match (Ext.DesSig _loc' _ n _ _) = n == name
 
 -- |Typecheck a term.
 checkExp :: Context -> Ext.Exp -> Int.Type -> Checker Int.Exp
@@ -203,16 +207,10 @@ checkExp c (Ext.AppExp loc name args) t = do
             Ext.ConSig loc' _ _ argTypes <- checkCon loc name t
             zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.ConExp t name
 checkExp c (Ext.DesExp loc name args inner) t = do
-  p <- getProgram
-  case find match (destructors p) of
-    Nothing -> failAt loc $
-        "Missing Definition: no destructor to get " ++ typeName t ++ " from " ++ name
-    Just (Ext.DesSig loc' _ _ argTypes innerType) -> do
+        Ext.DesSig loc' _ _ argTypes innerType <- checkDes loc name t
         tinner <- checkExp c inner innerType
         targs <- zipStrict loc loc' (checkExp c) args argTypes
         return $ Int.DesExp t name targs tinner
-  where
-    match (Ext.DesSig _loc' r n a _) = n == name && r == t && length a == length args
 
 -- |Infer the type of a term.
 inferExp :: Context -> Ext.Exp -> Checker Int.Exp
@@ -228,15 +226,10 @@ inferExp c (Ext.AppExp loc name args) = do
             Ext.ConSig loc' returnType _ argTypes <- inferCon loc name
             zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.ConExp returnType name
 inferExp c (Ext.DesExp loc name args inner) = do
-    p <- getProgram
-    case find match (destructors p) of
-        Nothing -> failAt loc "Missing Definition"
-        Just (Ext.DesSig loc' returnType _ argTypes innerType) -> do
+            Ext.DesSig loc' returnType _ argTypes innerType <- inferDes loc name
             tinner <- checkExp c inner innerType
             targs <- zipStrict loc loc' (checkExp c) args argTypes
             return $ Int.DesExp returnType name targs tinner
-  where
-    match (Ext.DesSig _loc' _ n _ _) = n == name
 
 -- |Identify a type to the user.
 typeName :: Int.Type -> Identifier
