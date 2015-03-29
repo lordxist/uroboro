@@ -21,6 +21,8 @@ module Uroboro.Tree.Internal
 
 import Uroboro.Tree.Common
 
+import Uroboro.Tree.External (HasReturnType (returnType))
+
 -- $common
 -- Reexported from "Uroboro.Tree.Common".
 
@@ -48,3 +50,14 @@ type Rule = (Cop, Exp)
 
 -- |A complete program.
 type Rules = [(Identifier, [Rule])]
+
+instance HasReturnType Cop where
+  returnType (AppCop t _ _) = t
+  returnType (DesCop t _ _ _) = t
+
+instance HasReturnType Exp where
+  returnType (VarExp t _) = t
+  returnType (AppExp t _ _) = t
+  returnType (ConExp t _ _) = t
+  returnType (DesExp t _ _ _) = t
+

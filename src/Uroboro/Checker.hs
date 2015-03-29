@@ -143,19 +143,14 @@ checkCop (Ext.AppCop loc name args) (name', (loc', argTypes, returnType))
 checkCop (Ext.DesCop loc name args inner) s = do
     tinner <- checkCop inner s
     p <- getProgram
-    case find (match (copReturnType tinner)) (destructors p) of
+    case find (match (Ext.returnType tinner)) (destructors p) of
         Nothing -> failAt loc $
-            "Missing Definition: " ++ (typeName $ copReturnType tinner) ++ "." ++ name
+            "Missing Definition: " ++ (typeName $ Ext.returnType tinner) ++ "." ++ name
         Just (Ext.DesSig loc' returnType _ argTypes _) -> do
             targs <- zipStrict loc loc' checkPat args argTypes
             return $ Int.DesCop returnType name targs tinner
   where
     match t (Ext.DesSig _loc' _ n _ innerType) = n == name && innerType == t
-
--- |The type a copattern matches.
-copReturnType :: Int.Cop -> Int.Type
-copReturnType (Int.AppCop t _ _) = t
-copReturnType (Int.DesCop t _ _ _) = t
 
 -- |Typecheck a term.
 checkExp :: Context -> Ext.Exp -> Int.Type -> Checker Int.Exp
@@ -208,18 +203,12 @@ inferExp c (Ext.AppExp loc name args) = do
 inferExp c (Ext.DesExp loc name args inner) = do
     p <- getProgram
     tinner <- inferExp c inner
-    case find (match (texpReturnType tinner)) (destructors p) of
+    case find (match (Ext.returnType tinner)) (destructors p) of
         Nothing -> failAt loc "Missing Definition"
         Just (Ext.DesSig loc' returnType _ argTypes _) -> do
             targs <- zipStrict loc loc' (checkExp c) args argTypes
             return $ Int.DesExp returnType name targs tinner
   where
-    texpReturnType :: Int.Exp -> Int.Type
-    texpReturnType (Int.VarExp t _) = t
-    texpReturnType (Int.AppExp t _ _) = t
-    texpReturnType (Int.ConExp t _ _) = t
-    texpReturnType (Int.DesExp t _ _ _) = t
-
     match t' (Ext.DesSig _loc' _ n _ t) = n == name && t == t'
 
 -- |Identify a type to the user.
@@ -231,7 +220,7 @@ checkRule :: FunSig -> Ext.Rule -> Checker Int.Rule
 checkRule s (Ext.Rule loc left right) = do
     tleft <- checkCop left s
     let c = copContext tleft
-    tright <- checkExp c right (copReturnType tleft)
+    tright <- checkExp c right (Ext.returnType tleft)
     let d = nubContext c
     if length c == length d then
         return (tleft, tright)

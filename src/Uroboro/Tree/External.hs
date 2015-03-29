@@ -18,6 +18,8 @@ module Uroboro.Tree.External
        , DesSig (DesSig)
        , Rule (Rule)
        , Def (DatDef, CodDef, FunDef)
+         -- * Overloaded Acessors
+       , HasReturnType (returnType)
        ) where
 
 import Uroboro.Error (Location)
@@ -68,3 +70,11 @@ data Def
     -- |Function.
     | FunDef Location Identifier [Type] Type [Rule] deriving (Show)
 
+class HasReturnType t where
+  returnType :: t -> Type
+
+instance HasReturnType ConSig where
+  returnType (ConSig _ t _ _) = t
+
+instance HasReturnType DesSig where
+  returnType (DesSig _ t _ _ _) = t
