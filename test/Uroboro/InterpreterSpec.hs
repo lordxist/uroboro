@@ -49,12 +49,12 @@ spec = do
             eval p m `shouldBe` ConExp int "succ" [ConExp int "zero" []]
         it "can run add1(0)" $ do
             p <- rules
-            m <- main "add1().apply(zero())"
+            m <- main "add1().apply1(zero())"
             r <- main "succ(zero())"
             eval p m `shouldBe` r
         it "can run add1(1)" $ do
             p <- rules
-            m <- main "add1().apply(succ(zero()))"
+            m <- main "add1().apply1(succ(zero()))"
             r <- main "succ(succ(zero()))"
             eval p m `shouldBe` r
         it "matches manual reduction" $ do

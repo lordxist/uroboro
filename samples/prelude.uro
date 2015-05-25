@@ -7,16 +7,16 @@ function add(Int, Int): Int where
     add(x, succ(y)) = add(succ(x), y)
 
 codata IntToInt where
-    IntToInt.apply(Int): Int
+    IntToInt.apply1(Int): Int
 
 function add1(): IntToInt where
-    add1().apply(x) = succ(x)
+    add1().apply1(x) = succ(x)
 
 function adder(Int): IntToInt where
-    adder(x).apply(y) = add(x, y)
+    adder(x).apply1(y) = add(x, y)
 
 codata TwoIntToInt where
-    TwoIntToInt.apply(Int, Int): Int
+    TwoIntToInt.apply2(Int, Int): Int
 
 data ListOfInt where
     empty(): ListOfInt
@@ -24,18 +24,18 @@ data ListOfInt where
 
 function map(IntToInt, ListOfInt): ListOfInt where
     map(f, empty()) = empty()
-    map(f, cons(x, xs)) = cons(f.apply(x), map(f, xs))
+    map(f, cons(x, xs)) = cons(f.apply1(x), map(f, xs))
 
 codata StreamOfInt where
     StreamOfInt.head(): Int
     StreamOfInt.tail(): StreamOfInt
 
 function mapStream(IntToInt, StreamOfInt): StreamOfInt where
-    mapStream(f, s).head() = f.apply(s.head())
+    mapStream(f, s).head() = f.apply1(s.head())
     mapStream(f, s).tail() = mapStream(f, s.tail())
 
 function zipWith(TwoIntToInt, StreamOfInt, StreamOfInt): StreamOfInt where
-    zipWith(f, a, b).head() = f.apply(a.head(), b.head())
+    zipWith(f, a, b).head() = f.apply2(a.head(), b.head())
     zipWith(f, a, b).tail() = zipWith(f, a.tail(), b.tail())
 
 function zeroes(): StreamOfInt where
