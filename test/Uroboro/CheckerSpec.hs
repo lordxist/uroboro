@@ -31,7 +31,7 @@ prelude = do
     fname <- getDataFileName "samples/prelude.uro"
     input <- readFile fname
     case parse parseDef fname input of
-        Left _ -> fail "Parser"
+        Left msg -> fail $ "Parser: " ++ show msg
         Right defs -> case foldM checkDef emptyProgram defs of
             Left _ -> fail "Checker"
             Right p -> return p

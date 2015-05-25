@@ -30,7 +30,7 @@ main input = do
     pexp <- parseString parseExp input
     prog <- prelude
     case inferExp prog [] pexp of
-        Left _ -> fail "Checker"
+        Left msg -> fail $ "Checker:" ++ show msg
         Right texp -> return texp
 
 spec :: Spec
