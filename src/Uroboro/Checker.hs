@@ -103,7 +103,7 @@ inferCon loc name = do
     Just consig -> return consig
     Nothing -> failAt loc "Missing Definition"
   where
-    match (Ext.ConSig _loc' _ n _) = n == name
+    match sig = Ext.name sig == name
 
 -- |Check that a constructor for a given type exists and return its signature.
 checkCon :: Location -> Identifier -> Int.Type -> Checker Ext.ConSig
@@ -121,7 +121,7 @@ inferDes loc name = do
     Just dessig -> return dessig
     Nothing -> failAt loc "Missing Definition"
   where
-    match (Ext.DesSig _loc' _ n _ _) = n == name
+    match sig = Ext.name sig == name
 
 -- |Check that a destructor (with given codomain) exists and return its signature.
 checkDes :: Location -> Identifier -> Int.Type -> Checker Ext.DesSig
@@ -157,7 +157,7 @@ inferFunOrCon loc name = do
       Just consig -> return (Con consig)
       Nothing -> failAt loc "Missing Definition"
   where
-    match (Ext.ConSig _loc' _ n _) = n == name
+    match sig = Ext.name sig == name
 
 -- |Check that a function or constructor (for a given codomain)
 -- exists and return its signature.

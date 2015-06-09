@@ -22,6 +22,7 @@ module Uroboro.Tree.External
        , HasReturnType (returnType)
        , HasArgumentTypes (argumentTypes)
        , HasLocation (location)
+       , HasName (name)
        ) where
 
 import Uroboro.Error (Location)
@@ -119,3 +120,36 @@ instance HasLocation Def where
   location (DatDef loc _ _) = loc
   location (CodDef loc _ _) = loc
   location (FunDef loc _ _ _ _) = loc
+
+class HasName t where
+  name :: t -> Identifier
+
+instance HasName Exp where
+  name (VarExp _ n) = n
+  name (AppExp _ n _) = n
+  name (DesExp _ n _ _) = n
+
+instance HasName Pat where
+  name (VarPat _ n) = n
+  name (ConPat _ n _) = n
+
+instance HasName Cop where
+  name (AppCop _ n _) = n
+  name (DesCop _ n _ _) = n
+
+instance HasName ConSig where
+  name (ConSig _ _ n _) = n
+
+instance HasName DesSig where
+  name (DesSig _ _ n _ _) = n
+
+instance HasName Rule where
+  name (Rule _ cop _) = name cop
+
+instance HasName Def where
+  name (DatDef _ t _) = name t
+  name (CodDef _ t _) = name t
+  name (FunDef _ n _ _ _) = n
+
+instance HasName Type where
+  name (Type n) = n
