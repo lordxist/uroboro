@@ -131,6 +131,35 @@ checkDes loc name t = do
     failAt loc "Missing Definition"
   return dessig
 
+data FunOrConSig
+  = Fun FunSig
+  | Con Ext.ConSig
+
+instance Ext.HasReturnType FunOrConSig where
+  returnType (Fun (_, (_, _, t))) = t
+  returnType (Con conSig) = Ext.returnType conSig
+
+-- |Check that a function or constructor exists and return its signature.
+inferFunOrCon :: Location -> Identifier -> Checker FunOrConSig
+inferFunOrCon loc name = do
+  p <- getProgram
+  case lookup name (functions p) of
+    Just funsig -> return (Fun (name, funsig))
+    Nothing -> case find match (constructors p) of
+      Just consig -> return (Con consig)
+      Nothing -> failAt loc "Missing Definition"
+  where
+    match (Ext.ConSig _loc' _ n _) = n == name
+
+-- |Check that a function or constructor (for a given codomain)
+-- exists and return its signature.
+checkFunOrCon :: Location -> Identifier -> Int.Type -> Checker FunOrConSig
+checkFunOrCon loc name t = do
+  funOrCon <- inferFunOrCon loc name
+  when (Ext.returnType funOrCon /= t) $ do
+    failAt loc "Missing Definition"
+  return funOrCon
+
 -- |Types of the variables bound in a pattern.
 type Context = [(Int.Identifier, Int.Type)]
 
@@ -198,14 +227,14 @@ checkExp c (Ext.VarExp loc n) t = case lookup n c of
                 " expected to be " ++ typeName t ++ " but is actually " ++ typeName t'
     Nothing             -> failAt loc $ "Unbound Variable: " ++ n
 checkExp c (Ext.AppExp loc name args) t = do
-  p <- getProgram
-  case lookup name (functions p) of
-    Just (loc', argTypes, returnType) | returnType == t ->
-                zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.AppExp returnType name
-        | otherwise -> failAt loc "Type Mismatch"
-    Nothing -> do
-      Ext.ConSig loc' _ _ argTypes <- checkCon loc name t
-      zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.ConExp t name
+  funOrCon <- checkFunOrCon loc name t
+  case funOrCon of
+    Fun (_, (loc', argTypes, _)) -> do
+      targs <- zipStrict loc loc' (checkExp c) args argTypes
+      return $ Int.AppExp t name targs
+    Con (Ext.ConSig loc' _ _ argTypes) -> do
+      targs <- zipStrict loc loc' (checkExp c) args argTypes
+      return $ Int.ConExp t name targs
 checkExp c (Ext.DesExp loc name args inner) t = do
   Ext.DesSig loc' _ _ argTypes innerType <- checkDes loc name t
   tinner <- checkExp c inner innerType
@@ -218,13 +247,14 @@ inferExp context (Ext.VarExp loc name) = case lookup name context of
     Nothing  -> failAt loc "Unbound Variable"
     Just typ -> return (Int.VarExp typ name)
 inferExp c (Ext.AppExp loc name args) = do
-  p <- getProgram
-  case lookup name (functions p) of
-    Just (loc', argTypes, returnType) ->
-        zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.AppExp returnType name
-    Nothing -> do
-      Ext.ConSig loc' returnType _ argTypes <- inferCon loc name
-      zipStrict loc loc' (checkExp c) args argTypes >>= return . Int.ConExp returnType name
+  funOrCon <- inferFunOrCon loc name
+  case funOrCon of
+    Fun (_, (loc', argTypes, returnType)) -> do
+      targs <- zipStrict loc loc' (checkExp c) args argTypes
+      return $ Int.AppExp returnType name targs
+    Con (Ext.ConSig loc' returnType _ argTypes) -> do
+      targs <- zipStrict loc loc' (checkExp c) args argTypes
+      return $ Int.ConExp returnType name targs
 inferExp c (Ext.DesExp loc name args inner) = do
   Ext.DesSig loc' returnType _ argTypes innerType <- inferDes loc name
   tinner <- checkExp c inner innerType
