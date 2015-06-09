@@ -78,15 +78,12 @@ getProgram = Checker (\s _ k -> k s s)
 setProgram :: Program -> Checker ()
 setProgram s = Checker (\_ _ k -> k s ())
 
--- |Signature of a function definition.
-type FunSig = (Identifier, (Location, [Int.Type], Int.Type))
-
 -- |State of the typechecker.
 data Program = Program {
       typeNames    :: [Int.Type]  -- Cache types of constructors and destructors.
     , constructors :: [Ext.ConSig]
     , destructors  :: [Ext.DesSig]
-    , functions    :: [FunSig] -- Always update functions and rules together.
+    , functions    :: [Ext.FunSig] -- Always update functions and rules together.
     -- |Extract the end result of typechecking.
     , rules        :: Int.Rules
     } deriving (Show)
@@ -133,27 +130,27 @@ checkDes loc name t = do
   return dessig
 
 data FunOrConSig
-  = Fun FunSig
+  = Fun Ext.FunSig
   | Con Ext.ConSig
 
 instance Ext.HasReturnType FunOrConSig where
-  returnType (Fun (_, (_, _, t))) = t
+  returnType (Fun funSig) = Ext.returnType funSig
   returnType (Con conSig) = Ext.returnType conSig
 
 instance Ext.HasArgumentTypes FunOrConSig where
-  argumentTypes (Fun (_, (_, ts, _))) = ts
+  argumentTypes (Fun funSig) = Ext.argumentTypes funSig
   argumentTypes (Con conSig) = Ext.argumentTypes conSig
 
 instance Ext.HasLocation FunOrConSig where
-  location (Fun (_, (loc, _, _))) = loc
+  location (Fun funsig) = Ext.location funsig
   location (Con consig) = Ext.location consig
 
 -- |Check that a function or constructor exists and return its signature.
 inferFunOrCon :: Location -> Identifier -> Checker FunOrConSig
 inferFunOrCon loc name = do
   p <- getProgram
-  case lookup name (functions p) of
-    Just funsig -> return (Fun (name, funsig))
+  case findByName name (functions p) of
+    Just funsig -> return (Fun funsig)
     Nothing -> case findByName name (constructors p) of
       Just consig -> return (Con consig)
       Nothing -> failAt loc "Missing Definition"
@@ -200,8 +197,8 @@ checkPat (Ext.ConPat loc name args) t = do
   zipStrict loc loc' checkPat args argTypes >>= return . Int.ConPat t name
 
 -- |Typecheck a copattern. Takes hole type.
-inferCop :: Ext.Cop -> FunSig -> Checker Int.Cop
-inferCop (Ext.AppCop loc name args) (name', (loc', argTypes, returnType))
+inferCop :: Ext.Cop -> Ext.FunSig -> Checker Int.Cop
+inferCop (Ext.AppCop loc name args) (Ext.FunSig loc' returnType name' argTypes)
     | name == name' = do
         targs <- zipStrict loc loc' checkPat args argTypes
         return $ Int.AppCop returnType name targs
@@ -214,8 +211,8 @@ inferCop (Ext.DesCop loc name args inner) s = do
   return $ Int.DesCop returnType name targs tinner
 
 -- |Typecheck a copattern. Takes hole type and expected return type.
-checkCop :: Ext.Cop -> FunSig -> Int.Type -> Checker Int.Cop
-checkCop (Ext.AppCop loc name args) (name', (loc', argTypes, returnType)) t
+checkCop :: Ext.Cop -> Ext.FunSig -> Int.Type -> Checker Int.Cop
+checkCop (Ext.AppCop loc name args) (Ext.FunSig loc' returnType name' argTypes) t
     | name == name', returnType == t = do
         targs <- zipStrict loc loc' checkPat args argTypes
         return $ Int.AppCop returnType name targs
@@ -267,7 +264,7 @@ typeName :: Int.Type -> Identifier
 typeName (Int.Type n) = n
 
 -- |Typecheck a rule against the function's signature.
-checkRule :: FunSig -> Ext.Rule -> Checker Int.Rule
+checkRule :: Ext.FunSig -> Ext.Rule -> Checker Int.Rule
 checkRule s (Ext.Rule loc left right) = do
     tleft <- inferCop left s
     let c = copContext tleft
@@ -304,11 +301,10 @@ preCheckDef (Ext.CodDef loc name des') = do
         }
   where
     mismatch (Ext.DesSig _loc' _ _ _ innerType) = innerType /= name
-preCheckDef (Ext.FunDef (Ext.FunSig loc returnType name argTypes) _) = do
+preCheckDef (Ext.FunDef sig@(Ext.FunSig loc returnType name argTypes) _) = do
         prog@(Program _ _ _ funs rulz) <- getProgram
         when (any clash rulz) $ do
           failAt loc "Shadowed Definition"
-        let sig = (name, (loc, argTypes, returnType))
         setProgram prog {
               functions = (sig:funs)
             }
@@ -331,10 +327,9 @@ postCheckDef (Ext.CodDef loc name des') = do
         " has a destructor with an unknown argument type"
   where
     missing names (Ext.DesSig _loc' _ _ args _)       = (nub args) \\ (name:names) /= []
-postCheckDef (Ext.FunDef (Ext.FunSig loc returnType name argTypes) rs)
+postCheckDef (Ext.FunDef sig@(Ext.FunSig loc returnType name argTypes) rs)
     = do
         prog@(Program _ _ _ _ rulz) <- getProgram
-        let sig = (name, (loc, argTypes, returnType))
         trs <- mapM (checkRule sig) rs
         setProgram prog {
               rules = ((name, trs):rulz)
