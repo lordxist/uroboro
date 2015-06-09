@@ -95,15 +95,18 @@ data Program = Program {
 emptyProgram :: Program
 emptyProgram = Program [] [] [] [] []
 
+-- |Look something up by name.
+findByName :: Ext.HasName t => Identifier -> [t] -> Maybe t
+findByName n = find match where
+  match t = Ext.name t == n
+
 -- |Check that a constructor exists and return its signature.
 inferCon :: Location -> Identifier -> Checker Ext.ConSig
 inferCon loc name = do
   p <- getProgram
-  case find match (constructors p) of
+  case findByName name (constructors p) of
     Just consig -> return consig
     Nothing -> failAt loc "Missing Definition"
-  where
-    match sig = Ext.name sig == name
 
 -- |Check that a constructor for a given type exists and return its signature.
 checkCon :: Location -> Identifier -> Int.Type -> Checker Ext.ConSig
@@ -117,11 +120,9 @@ checkCon loc name t = do
 inferDes :: Location -> Identifier -> Checker Ext.DesSig
 inferDes loc name = do
   p <- getProgram
-  case find match (destructors p) of
+  case findByName name (destructors p) of
     Just dessig -> return dessig
     Nothing -> failAt loc "Missing Definition"
-  where
-    match sig = Ext.name sig == name
 
 -- |Check that a destructor (with given codomain) exists and return its signature.
 checkDes :: Location -> Identifier -> Int.Type -> Checker Ext.DesSig
@@ -153,11 +154,9 @@ inferFunOrCon loc name = do
   p <- getProgram
   case lookup name (functions p) of
     Just funsig -> return (Fun (name, funsig))
-    Nothing -> case find match (constructors p) of
+    Nothing -> case findByName name (constructors p) of
       Just consig -> return (Con consig)
       Nothing -> failAt loc "Missing Definition"
-  where
-    match sig = Ext.name sig == name
 
 -- |Check that a function or constructor (for a given codomain)
 -- exists and return its signature.
