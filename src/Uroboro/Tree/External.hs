@@ -20,6 +20,8 @@ module Uroboro.Tree.External
        , Def (DatDef, CodDef, FunDef)
          -- * Overloaded Acessors
        , HasReturnType (returnType)
+       , HasArgumentTypes (argumentTypes)
+       , HasLocation (location)
        ) where
 
 import Uroboro.Error (Location)
@@ -78,3 +80,42 @@ instance HasReturnType ConSig where
 
 instance HasReturnType DesSig where
   returnType (DesSig _ t _ _ _) = t
+
+class HasArgumentTypes t where
+  argumentTypes :: t -> [Type]
+
+instance HasArgumentTypes ConSig where
+  argumentTypes (ConSig _ _ _ ts) = ts
+
+instance HasArgumentTypes DesSig where
+  argumentTypes (DesSig _ _ _ ts _) = ts
+
+class HasLocation t where
+  location :: t -> Location
+
+instance HasLocation Exp where
+  location (VarExp loc _) = loc
+  location (AppExp loc _ _) = loc
+  location (DesExp loc _ _ _) = loc
+
+instance HasLocation Pat where
+  location (VarPat loc _) = loc
+  location (ConPat loc _ _) = loc
+
+instance HasLocation Cop where
+  location (AppCop loc _ _) = loc
+  location (DesCop loc _ _ _) = loc
+
+instance HasLocation ConSig where
+  location (ConSig loc _ _ _) = loc
+
+instance HasLocation DesSig where
+  location (DesSig loc _ _ _ _) = loc
+
+instance HasLocation Rule where
+  location (Rule loc _ _) = loc
+
+instance HasLocation Def where
+  location (DatDef loc _ _) = loc
+  location (CodDef loc _ _) = loc
+  location (FunDef loc _ _ _ _) = loc

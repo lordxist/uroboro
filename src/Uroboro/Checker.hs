@@ -139,6 +139,14 @@ instance Ext.HasReturnType FunOrConSig where
   returnType (Fun (_, (_, _, t))) = t
   returnType (Con conSig) = Ext.returnType conSig
 
+instance Ext.HasArgumentTypes FunOrConSig where
+  argumentTypes (Fun (_, (_, ts, _))) = ts
+  argumentTypes (Con conSig) = Ext.argumentTypes conSig
+
+instance Ext.HasLocation FunOrConSig where
+  location (Fun (_, (loc, _, _))) = loc
+  location (Con consig) = Ext.location consig
+
 -- |Check that a function or constructor exists and return its signature.
 inferFunOrCon :: Location -> Identifier -> Checker FunOrConSig
 inferFunOrCon loc name = do
@@ -228,13 +236,10 @@ checkExp c (Ext.VarExp loc n) t = case lookup n c of
     Nothing             -> failAt loc $ "Unbound Variable: " ++ n
 checkExp c (Ext.AppExp loc name args) t = do
   funOrCon <- checkFunOrCon loc name t
-  case funOrCon of
-    Fun (_, (loc', argTypes, _)) -> do
-      targs <- zipStrict loc loc' (checkExp c) args argTypes
-      return $ Int.AppExp t name targs
-    Con (Ext.ConSig loc' _ _ argTypes) -> do
-      targs <- zipStrict loc loc' (checkExp c) args argTypes
-      return $ Int.ConExp t name targs
+  targs <- zipStrict loc (Ext.location funOrCon) (checkExp c) args (Ext.argumentTypes funOrCon)
+  return $ case funOrCon of
+    Fun _ -> Int.AppExp t name targs
+    Con _ -> Int.ConExp t name targs
 checkExp c (Ext.DesExp loc name args inner) t = do
   Ext.DesSig loc' _ _ argTypes innerType <- checkDes loc name t
   tinner <- checkExp c inner innerType
@@ -248,13 +253,10 @@ inferExp context (Ext.VarExp loc name) = case lookup name context of
     Just typ -> return (Int.VarExp typ name)
 inferExp c (Ext.AppExp loc name args) = do
   funOrCon <- inferFunOrCon loc name
-  case funOrCon of
-    Fun (_, (loc', argTypes, returnType)) -> do
-      targs <- zipStrict loc loc' (checkExp c) args argTypes
-      return $ Int.AppExp returnType name targs
-    Con (Ext.ConSig loc' returnType _ argTypes) -> do
-      targs <- zipStrict loc loc' (checkExp c) args argTypes
-      return $ Int.ConExp returnType name targs
+  targs <- zipStrict loc (Ext.location funOrCon) (checkExp c) args (Ext.argumentTypes funOrCon)
+  return $ case funOrCon of
+    Fun _ -> Int.AppExp (Ext.returnType funOrCon) name targs
+    Con _ -> Int.ConExp (Ext.returnType funOrCon) name targs
 inferExp c (Ext.DesExp loc name args inner) = do
   Ext.DesSig loc' returnType _ argTypes innerType <- inferDes loc name
   tinner <- checkExp c inner innerType
