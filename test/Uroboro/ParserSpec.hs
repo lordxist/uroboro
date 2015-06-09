@@ -38,7 +38,7 @@ spec = do
         it "accepts empty functions" $ do
             let source = "function foo() : Foo where"
             parse parseDef "" source `shouldSatisfy` (\x -> case x of
-              Right [FunDef _ "foo" [] (Type "Foo") []] -> True
+              Right [FunDef (FunSig _ (Type "Foo") "foo" []) []] -> True
               _ -> False)
         it "accepts empty data types" $ do
             let source = "data Foo where"

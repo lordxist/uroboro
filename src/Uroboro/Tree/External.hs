@@ -16,6 +16,7 @@ module Uroboro.Tree.External
        , Cop (AppCop, DesCop)
        , ConSig (ConSig)
        , DesSig (DesSig)
+       , FunSig (FunSig)
        , Rule (Rule)
        , Def (DatDef, CodDef, FunDef)
          -- * Overloaded Acessors
@@ -61,6 +62,9 @@ data ConSig = ConSig Location Type Identifier [Type] deriving (Show)
 -- Return type first, type to destruct last.
 data DesSig = DesSig Location Type Identifier [Type] Type deriving (Show)
 
+-- |Function signature.
+data FunSig = FunSig Location Type Identifier [Type] deriving (Show)
+
 -- |Part of a function definition.
 data Rule = Rule Location Cop Exp deriving (Show)
 
@@ -71,7 +75,7 @@ data Def
     -- |Codata type.
     | CodDef Location Type [DesSig]
     -- |Function.
-    | FunDef Location Identifier [Type] Type [Rule] deriving (Show)
+    | FunDef FunSig [Rule] deriving (Show)
 
 class HasReturnType t where
   returnType :: t -> Type
@@ -82,6 +86,9 @@ instance HasReturnType ConSig where
 instance HasReturnType DesSig where
   returnType (DesSig _ t _ _ _) = t
 
+instance HasReturnType FunSig where
+  returnType (FunSig _ t _ _) = t
+
 class HasArgumentTypes t where
   argumentTypes :: t -> [Type]
 
@@ -90,6 +97,9 @@ instance HasArgumentTypes ConSig where
 
 instance HasArgumentTypes DesSig where
   argumentTypes (DesSig _ _ _ ts _) = ts
+
+instance HasArgumentTypes FunSig where
+  argumentTypes (FunSig _ _ _ ts) = ts
 
 class HasLocation t where
   location :: t -> Location
@@ -113,13 +123,16 @@ instance HasLocation ConSig where
 instance HasLocation DesSig where
   location (DesSig loc _ _ _ _) = loc
 
+instance HasLocation FunSig where
+  location (FunSig loc _ _ _) = loc
+
 instance HasLocation Rule where
   location (Rule loc _ _) = loc
 
 instance HasLocation Def where
   location (DatDef loc _ _) = loc
   location (CodDef loc _ _) = loc
-  location (FunDef loc _ _ _ _) = loc
+  location (FunDef sig _) = location sig
 
 class HasName t where
   name :: t -> Identifier
@@ -143,13 +156,16 @@ instance HasName ConSig where
 instance HasName DesSig where
   name (DesSig _ _ n _ _) = n
 
+instance HasName FunSig where
+  name (FunSig _ _ n _) = n
+
 instance HasName Rule where
   name (Rule _ cop _) = name cop
 
 instance HasName Def where
   name (DatDef _ t _) = name t
   name (CodDef _ t _) = name t
-  name (FunDef _ n _ _ _) = n
+  name (FunDef sig _) = name sig
 
 instance HasName Type where
   name (Type n) = n

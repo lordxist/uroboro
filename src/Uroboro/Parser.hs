@@ -32,6 +32,7 @@ import Uroboro.Tree.External
     , Def(..)
     , ConSig(..)
     , DesSig(..)
+    , FunSig(..)
     , Rule(..)
     , Type(..)
     )
@@ -98,8 +99,8 @@ parseDef = exactly $ many (choice [pos, neg, fun])
   where
     pos = definition "data" DatDef <*> where1 con
     neg = definition "codata" CodDef <*> where1 des
-    fun = liftLoc FunDef (reserved "function" *> identifier) <*>
-        args typ <*> (colon *> typ) <*> where1 rul
+    fun = liftM FunDef (liftLoc (flip3 FunSig) (reserved "function" *> identifier) <*>
+        args typ <*> (colon *> typ)) <*> where1 rul
 
     con = liftLoc (flip3 ConSig) identifier <*> args typ <*> (colon *> typ)
     des = liftLoc (flip4 DesSig) typ <*>

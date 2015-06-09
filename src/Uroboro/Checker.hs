@@ -304,7 +304,7 @@ preCheckDef (Ext.CodDef loc name des') = do
         }
   where
     mismatch (Ext.DesSig _loc' _ _ _ innerType) = innerType /= name
-preCheckDef (Ext.FunDef loc name argTypes returnType _) = do
+preCheckDef (Ext.FunDef (Ext.FunSig loc returnType name argTypes) _) = do
         prog@(Program _ _ _ funs rulz) <- getProgram
         when (any clash rulz) $ do
           failAt loc "Shadowed Definition"
@@ -331,7 +331,7 @@ postCheckDef (Ext.CodDef loc name des') = do
         " has a destructor with an unknown argument type"
   where
     missing names (Ext.DesSig _loc' _ _ args _)       = (nub args) \\ (name:names) /= []
-postCheckDef (Ext.FunDef loc name argTypes returnType rs)
+postCheckDef (Ext.FunDef (Ext.FunSig loc returnType name argTypes) rs)
     = do
         prog@(Program _ _ _ _ rulz) <- getProgram
         let sig = (name, (loc, argTypes, returnType))
