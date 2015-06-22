@@ -103,14 +103,14 @@ inferCon loc name = do
   p <- getProgram
   case findByName name (constructors p) of
     Just consig -> return consig
-    Nothing -> failAt loc "Missing Definition"
+    Nothing -> failAt loc ("Missing Definition for " ++ name)
 
 -- |Check that a constructor for a given type exists and return its signature.
 checkCon :: Location -> Identifier -> Int.Type -> Checker Ext.ConSig
 checkCon loc name t = do
   consig <- inferCon loc name
   when (Ext.returnType consig /= t) $ do
-    failAt loc "Missing Definition"
+    failAt loc ("Wrong type of " ++ name)
   return consig
 
 -- |Check that a destructor exists and return its signature.
@@ -119,14 +119,14 @@ inferDes loc name = do
   p <- getProgram
   case findByName name (destructors p) of
     Just dessig -> return dessig
-    Nothing -> failAt loc "Missing Definition"
+    Nothing -> failAt loc ("Missing Definition for " ++ name)
 
 -- |Check that a destructor (with given codomain) exists and return its signature.
 checkDes :: Location -> Identifier -> Int.Type -> Checker Ext.DesSig
 checkDes loc name t = do
   dessig <- inferDes loc name
   when (Ext.returnType dessig /= t) $ do
-    failAt loc "Missing Definition"
+    failAt loc ("Wrong type of " ++ name)
   return dessig
 
 data FunOrConSig
@@ -153,7 +153,7 @@ inferFunOrCon loc name = do
     Just funsig -> return (Fun funsig)
     Nothing -> case findByName name (constructors p) of
       Just consig -> return (Con consig)
-      Nothing -> failAt loc "Missing Definition"
+      Nothing -> failAt loc ("Missing Definition for " ++ name)
 
 -- |Check that a function or constructor (for a given codomain)
 -- exists and return its signature.
@@ -161,7 +161,7 @@ checkFunOrCon :: Location -> Identifier -> Int.Type -> Checker FunOrConSig
 checkFunOrCon loc name t = do
   funOrCon <- inferFunOrCon loc name
   when (Ext.returnType funOrCon /= t) $ do
-    failAt loc "Missing Definition"
+    failAt loc ("Wrong type of " ++ name)
   return funOrCon
 
 -- |Types of the variables bound in a pattern.
