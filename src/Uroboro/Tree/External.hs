@@ -10,6 +10,7 @@ module Uroboro.Tree.External
          -- $common
          Identifier
        , HasName (name)
+       , findByName
        , Type (Type)
          -- * Parse tree
        , Exp (VarExp, AppExp, DesExp)

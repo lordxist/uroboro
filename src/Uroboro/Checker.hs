@@ -22,14 +22,14 @@ module Uroboro.Checker
 
 import Control.Applicative
 import Control.Monad (when, zipWithM)
-import Data.List ((\\), find, nub, nubBy)
+import Data.List ((\\), nub, nubBy)
 import Data.Foldable (traverse_)
 
 import System.Exit (exitFailure)
 
 import Uroboro.Error (Error (MakeError), Location)
 
-import Uroboro.Tree.Common (Identifier)
+import Uroboro.Tree.Common (Identifier, findByName)
 import qualified Uroboro.Tree.Internal as Int
 import qualified Uroboro.Tree.External as Ext
 
@@ -91,11 +91,6 @@ data Program = Program {
 -- |Start value for folds.
 emptyProgram :: Program
 emptyProgram = Program [] [] [] [] []
-
--- |Look something up by name.
-findByName :: Ext.HasName t => Identifier -> [t] -> Maybe t
-findByName n = find match where
-  match t = Ext.name t == n
 
 -- |Check that a constructor exists and return its signature.
 inferCon :: Location -> Identifier -> Checker Ext.ConSig
