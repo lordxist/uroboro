@@ -9,6 +9,7 @@ module Uroboro.Tree.External
        ( -- * Common parts
          -- $common
          Identifier
+       , HasName (name)
        , Type (Type)
          -- * Parse tree
        , Exp (VarExp, AppExp, DesExp)
@@ -23,7 +24,6 @@ module Uroboro.Tree.External
        , HasReturnType (returnType)
        , HasArgumentTypes (argumentTypes)
        , HasLocation (location)
-       , HasName (name)
        ) where
 
 import Uroboro.Error (Location)
@@ -133,9 +133,6 @@ instance HasLocation Def where
   location (DatDef loc _ _) = loc
   location (CodDef loc _ _) = loc
   location (FunDef sig _) = location sig
-
-class HasName t where
-  name :: t -> Identifier
 
 instance HasName Exp where
   name (VarExp _ n) = n

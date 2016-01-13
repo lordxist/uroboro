@@ -7,12 +7,16 @@ as syntax trees.
 
 module Uroboro.Tree.Common
        ( Identifier
+       , HasName (name)
        , Type (Type)
        ) where
 
 -- |This is used for type names, function names, constructor and
 -- destructor names, as well as variable names.
 type Identifier = String
+
+class HasName t where
+  name :: t -> Identifier
 
 -- |Represents both positive and negative data types.
 newtype Type = Type Identifier deriving (Eq, Show)
