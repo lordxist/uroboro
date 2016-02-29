@@ -38,6 +38,7 @@ flag warnings
 library
   exposed-modules:
     Uroboro.Checker
+    Uroboro.Checker.Monad
     Uroboro.Error
     Uroboro.Interpreter
     Uroboro.Parser
