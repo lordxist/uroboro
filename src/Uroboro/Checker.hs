@@ -9,7 +9,9 @@ module Uroboro.Checker
     ( -- * Type checking monad
       Checker
     , checkerEither
+    , checkerEitherDefault
     , checkerIO
+    , checkerIODefault
       -- * Type checking
     , checkExp
     , Context
@@ -18,10 +20,12 @@ module Uroboro.Checker
     , Program
     , rules
     , typecheck
+    , TypeSubEnv
     ) where
 
 import Control.Applicative
 import Control.Monad (when, zipWithM)
+import Control.Monad.Reader
 import Data.List ((\\), nub, nubBy)
 import Data.Foldable (traverse_)
 
@@ -47,7 +51,8 @@ inferCon loc name = do
 checkCon :: Location -> Identifier -> Int.Type -> Checker Ext.ConSig
 checkCon loc name t = do
   consig <- inferCon loc name
-  when (Ext.returnType consig /= t) $ do
+  subsumes <- ask
+  unless (t `subsumes` (Ext.returnType consig)) $ do
     failAt loc ("Wrong type of " ++ name)
   return consig
 
@@ -63,7 +68,8 @@ inferDes loc name = do
 checkDes :: Location -> Identifier -> Int.Type -> Checker Ext.DesSig
 checkDes loc name t = do
   dessig <- inferDes loc name
-  when (Ext.returnType dessig /= t) $ do
+  subsumes <- ask
+  unless (t `subsumes` (Ext.returnType dessig)) $ do
     failAt loc ("Wrong type of " ++ name)
   return dessig
 
@@ -98,7 +104,13 @@ inferFunOrCon loc name = do
 checkFunOrCon :: Location -> Identifier -> Int.Type -> Checker FunOrConSig
 checkFunOrCon loc name t = do
   funOrCon <- inferFunOrCon loc name
-  when (Ext.returnType funOrCon /= t) $ do
+  -- determineExtension t (Ext.returnType funOrCon)
+  -- when (Ext.returnType funOrCon /= t) $ do
+  subsumes <- ask
+  let typeSubsumption = case funOrCon of
+                          Con _ -> t `subsumes` (Ext.returnType funOrCon)
+                          Fun _ -> (Ext.returnType funOrCon) `subsumes` t
+  unless typeSubsumption $ do
     failAt loc ("Wrong type of " ++ name)
   return funOrCon
 
@@ -150,11 +162,16 @@ inferCop (Ext.DesCop loc name args inner) s = do
 
 -- |Typecheck a copattern. Takes hole type and expected return type.
 checkCop :: Ext.Cop -> Ext.FunSig -> Int.Type -> Checker Int.Cop
-checkCop (Ext.AppCop loc name args) (Ext.FunSig loc' returnType name' argTypes) t
-    | name == name', returnType == t = do
-        targs <- zipStrict loc loc' checkPat args argTypes
-        return $ Int.AppCop returnType name targs
-    | otherwise     = failAt loc "Definition Mismatch"
+checkCop (Ext.AppCop loc name args) (Ext.FunSig loc' returnType name' argTypes) t = do
+    subsumes <- ask
+    unless (name == name' && returnType `subsumes` t) $ do
+      failAt loc "Definition Mismatch"
+    targs <- zipStrict loc loc' checkPat args argTypes
+    return $ Int.AppCop returnType name targs
+    -- | name == name', returnType == t = do
+    --     targs <- zipStrict loc loc' checkPat args argTypes
+    --     return $ Int.AppCop returnType name targs
+    -- | otherwise     = failAt loc "Definition Mismatch"
 checkCop (Ext.DesCop loc name args inner) s t = do
   Ext.DesSig loc' returnType _ argTypes innerType <- checkDes loc name t
   tinner <- checkCop inner s t
@@ -215,7 +232,7 @@ checkRule s (Ext.Rule loc left right) = do
 
 -- |Fold to collect definitions.
 preCheckDef :: Ext.Def -> Checker ()
-preCheckDef (Ext.DatDef loc name cons') = do
+preCheckDef (Ext.DatDef loc name _parent cons') = do
     prog@(Program names cons _ _ _) <- getProgram
     when (name `elem` names) $ do
       failAt loc "Shadowed Definition"
@@ -227,7 +244,7 @@ preCheckDef (Ext.DatDef loc name cons') = do
         }
   where
     mismatch (Ext.ConSig _loc' returnType _ _) = returnType /= name
-preCheckDef (Ext.CodDef loc name des') = do
+preCheckDef (Ext.CodDef loc name _parent des') = do
     prog@(Program names _ des _ _) <- getProgram
     when (name `elem` names) $ do
       failAt loc "Shadowed Definition"
@@ -251,13 +268,13 @@ preCheckDef (Ext.FunDef sig@(Ext.FunSig loc returnType name argTypes) _) = do
 
 -- |Fold to typecheck definitions.
 postCheckDef :: Ext.Def -> Checker ()
-postCheckDef (Ext.DatDef loc name cons') = do
+postCheckDef (Ext.DatDef loc name _parent cons') = do
     Program names _ _ _ _ <- getProgram
     when (any (missing names) cons') $ do
       failAt loc "Missing Definition"
   where
     missing names (Ext.ConSig _loc' _ _ args)        = (nub args) \\ (name:names) /= []
-postCheckDef (Ext.CodDef loc name des') = do
+postCheckDef (Ext.CodDef loc name _parent des') = do
     Program names _ _ _ _ <- getProgram
     when (any (missing names) des') $ do
       failAt loc $

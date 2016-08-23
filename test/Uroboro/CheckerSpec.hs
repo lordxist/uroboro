@@ -12,27 +12,36 @@ import Paths_uroboro (getDataFileName)
 import Uroboro.Checker
     ( Checker
     , checkerEither
+    , checkerEitherDefault
     , setProgram
     , checkExp
     , typecheck
     , Context
     , inferExp
     , Program
+    , TypeSubEnv
     )
 import Uroboro.Error
 import Uroboro.Parser (parseDef, parseExp)
+import Uroboro.Subtyping
+import Uroboro.Tree.External(Def)
 import Uroboro.Tree.Internal (Exp(..), Type(..))
 import Utils (parseString)
 
-prelude :: IO Program
-prelude = do
-    fname <- getDataFileName "samples/prelude.uro"
+urofile :: String -> IO [Def]
+urofile s = do
+    fname <- getDataFileName $ "samples/" ++ s ++ ".uro"
     input <- readFile fname
     case parse parseDef fname input of
         Left msg -> fail $ "Parser: " ++ show msg
-        Right defs -> case checkerEither (typecheck defs) of
-            Left _ -> fail "Checker"
-            Right p -> return p
+        Right defs -> return defs
+
+prelude :: IO Program
+prelude = do
+    defs <- urofile "prelude"
+    case checkerEitherDefault (typecheck defs) of
+        Left _ -> fail "Checker"
+        Right p -> return p
 
 -- |Context using prelude
 c :: Context
@@ -46,14 +55,14 @@ c = [
 
 -- |Assert error message
 shouldFail :: Show a => Checker a -> String -> Expectation
-p `shouldFail` part = case checkerEither p of
+p `shouldFail` part = case checkerEitherDefault p of
   Left (MakeError _ msg) -> msg `shouldContain` part
   Right  x               -> expectationFailure
     ("expected: \"... " ++ part ++ " ...\"\n but got: " ++ show x)
 
 -- |Assert success
 successfully :: Checker a -> IO a
-successfully p = case checkerEither p of
+successfully p = case checkerEitherDefault p of
   -- the "return undefined" is just for the type checker
   -- (expectationFailure will throw an exception)
   Left err -> expectationFailure (show err) >> return undefined
@@ -61,7 +70,15 @@ successfully p = case checkerEither p of
 
 -- |Assert success
 successfully_ :: Checker a -> IO ()
-successfully_ p = case checkerEither p of
+successfully_ p = case checkerEitherDefault p of
+  -- the "return undefined" is just for the type checker
+  -- (expectationFailure will throw an exception)
+  Left err -> expectationFailure (show err)
+  Right _  -> return ()
+
+-- |Assert success in type subsumption environment
+successfullyInEnv_ :: Checker a -> TypeSubEnv -> IO ()
+successfullyInEnv_ p env = case checkerEither p env of
   -- the "return undefined" is just for the type checker
   -- (expectationFailure will throw an exception)
   Left err -> expectationFailure (show err)
@@ -138,3 +155,12 @@ spec = do
             t `shouldBe`
               AppExp (Type "ListOfInt") "map"
                 [VarExp (Type "IntToInt") "f", VarExp (Type "ListOfInt") "l"]
+    describe "subtypes" $ do
+        it "allows data subtypes" $ do
+            defs <- urofile "data-subtypes"
+            successfullyInEnv_ (typecheck defs) (extensionRelation defs)
+        it "allows codata subtypes" $ do
+            defs <- urofile "codata-subtypes"
+            successfullyInEnv_ (typecheck defs) (extensionRelation defs)
+
+

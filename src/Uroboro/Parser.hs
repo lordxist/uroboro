@@ -113,8 +113,8 @@ parseDef = exactly $ many (choice [pos, neg, fun])
     flip3 f loc a b c   = f loc c a b
     flip4 f loc a b c d = f loc d b c a
 
-    definition :: String -> (Location -> Type -> a) -> Parser a
-    definition kind make = liftLoc make (reserved kind *> typ)
+    definition :: String -> (Location -> Type -> (Maybe Type) -> a) -> Parser a
+    definition kind make = liftLoc make (reserved kind *> typ) <*> (optionMaybe $ reserved "extends" *> typ)
 
     where1 :: Parser a -> Parser [a]
     where1 a = reserved "where" *> many a

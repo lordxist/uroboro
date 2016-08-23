@@ -23,6 +23,7 @@ import Uroboro.Checker
 import Uroboro.Interpreter (eval)
 import Uroboro.Parser (parseFile, parseExpression)
 import Uroboro.PrettyPrint (render)
+import Uroboro.Subtyping (extensionRelation)
 import Uroboro.Tree.External (Def)
 
 -- |How the program operates, and on what data.
@@ -62,13 +63,14 @@ main = do
         Evaluate paths input -> do
             defs  <- parseFiles paths
             pexp  <- eitherIO $ parseExpression "command line" input
-            prog  <- checkerIO $ typecheck defs
-            texp  <- checkerIO $ setProgram prog >> inferExp [] pexp
+            let subEnv = extensionRelation defs
+            prog  <- checkerIO (typecheck defs) subEnv
+            texp  <- flip checkerIO subEnv $ setProgram prog >> inferExp [] pexp
 
             putStrLn (render $ eval (rules prog) texp)
         Typecheck paths -> do
             defs  <- parseFiles paths
-            checkerIO $ void (typecheck defs)
+            checkerIO (void (typecheck defs)) (extensionRelation defs)
         Help -> do
             putStrLn "USAGE: uroboro FILES [-- EXPRESSION]"
             exitFailure

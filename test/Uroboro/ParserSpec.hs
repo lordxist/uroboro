@@ -28,12 +28,12 @@ spec = do
         it "observes argument order (constructor)" $ do
             let source = "data Int where zero(): Int"
             parse parseDef "" source `shouldSatisfy` (\x -> case x of
-              Right [DatDef _ (Type "Int") [ConSig _ (Type "Int") "zero" []]] -> True
+              Right [DatDef _ (Type "Int") Nothing [ConSig _ (Type "Int") "zero" []]] -> True
               _ -> False)
         it "observes argument order (destructor)" $ do
             let source = "codata StreamOfInt where StreamOfInt.head(): Int"
             parse parseDef "" source `shouldSatisfy` (\x -> case x of
-              Right [CodDef _ (Type "StreamOfInt") [DesSig _ (Type "Int") "head" [] (Type "StreamOfInt")]] -> True
+              Right [CodDef _ (Type "StreamOfInt") Nothing [DesSig _ (Type "Int") "head" [] (Type "StreamOfInt")]] -> True
               _ -> False)
         it "accepts empty functions" $ do
             let source = "function foo() : Foo where"
@@ -43,12 +43,22 @@ spec = do
         it "accepts empty data types" $ do
             let source = "data Foo where"
             parse parseDef "" source `shouldSatisfy` (\x -> case x of
-              Right [DatDef _ (Type "Foo") []] -> True
+              Right [DatDef _ (Type "Foo") Nothing []] -> True
               _ -> False)
         it "accepts empty codata types" $ do
             let source = "codata Foo where"
             parse parseDef "" source `shouldSatisfy` (\x -> case x of
-              Right [CodDef _ (Type "Foo") []] -> True
+              Right [CodDef _ (Type "Foo") Nothing []] -> True
+              _ -> False)
+        it "accepts data types with parents" $ do
+            let source = "data Foo extends Bar where"
+            parse parseDef "" source `shouldSatisfy` (\x -> case x of
+              Right [DatDef _ (Type "Foo") (Just (Type "Bar")) []] -> True
+              _ -> False)
+        it "accepts codata types with parents" $ do
+            let source = "codata Foo extends Bar where"
+            parse parseDef "" source `shouldSatisfy` (\x -> case x of
+              Right [CodDef _ (Type "Foo") (Just (Type "Bar")) []] -> True
               _ -> False)
     describe "command line" $ do
         it "ignores whitespace" $ do

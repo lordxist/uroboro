@@ -43,6 +43,7 @@ library
     Uroboro.Interpreter
     Uroboro.Parser
     Uroboro.PrettyPrint
+    Uroboro.Subtyping
     Uroboro.Token
     Uroboro.Tree.Common
     Uroboro.Tree.External
@@ -52,6 +53,7 @@ library
   build-depends:
       base >=4.7 && <4.9
     , parsec >=3.1 && <3.2
+    , mtl >= 2.2.1
   hs-source-dirs:      src
   default-language:    Haskell2010
   if flag(coverage)
@@ -84,6 +86,7 @@ test-suite tests
       base    == 4.*
     , uroboro
     , parsec
+    , mtl >= 2.2.1
     , hspec >=1.11 && <2.3
   default-language:    Haskell2010
 

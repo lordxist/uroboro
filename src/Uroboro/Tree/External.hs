@@ -72,9 +72,9 @@ data Rule = Rule Location Cop Exp deriving (Show)
 -- |Definition.
 data Def
     -- |Data type.
-    = DatDef Location Type [ConSig]
+    = DatDef Location Type (Maybe Type) [ConSig]
     -- |Codata type.
-    | CodDef Location Type [DesSig]
+    | CodDef Location Type (Maybe Type) [DesSig]
     -- |Function.
     | FunDef FunSig [Rule] deriving (Show)
 
@@ -131,8 +131,8 @@ instance HasLocation Rule where
   location (Rule loc _ _) = loc
 
 instance HasLocation Def where
-  location (DatDef loc _ _) = loc
-  location (CodDef loc _ _) = loc
+  location (DatDef loc _ _ _) = loc
+  location (CodDef loc _ _ _) = loc
   location (FunDef sig _) = location sig
 
 instance HasName Exp where
@@ -161,8 +161,8 @@ instance HasName Rule where
   name (Rule _ cop _) = name cop
 
 instance HasName Def where
-  name (DatDef _ t _) = name t
-  name (CodDef _ t _) = name t
+  name (DatDef _ t _ _) = name t
+  name (CodDef _ t _ _) = name t
   name (FunDef sig _) = name sig
 
 instance HasName Type where

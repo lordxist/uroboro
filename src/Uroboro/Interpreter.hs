@@ -51,8 +51,8 @@ pmatch _ _                   = Left "Not Comparable"
 
 -- |Copattern matching.
 qmatch :: E -> Cop -> Either String Substitution
-qmatch (EApp r as) (AppCop r' _ ps)
-    | r /= r'                = error "Type checker guarantees hole type"
+qmatch (EApp r as) app@(AppCop r' _ ps)
+    -- | r /= r'                = error "Type checker guarantees hole type"  --TODO: replace non-equality comparisons with non-subsumption comparisons
     | length as /= length ps = Left "Argument Length Mismatch"
     | otherwise              = zipWithM pmatch as ps >>= return . concat
 qmatch (EDes r d as inner) (DesCop r' d' ps inner')
@@ -64,6 +64,8 @@ qmatch (EDes r d as inner) (DesCop r' d' ps inner')
         ss <- zipWithM pmatch as ps
         return $ is ++ (concat ss)
 qmatch _ _                   = Left "Not Comparable"
+
+-- More general TODO?: Why all the checks whether the types work out? Shouldn't this be offensively assumed??
 
 -- |Substitute all occurences.
 subst :: Exp -> (Identifier, Exp) -> Exp

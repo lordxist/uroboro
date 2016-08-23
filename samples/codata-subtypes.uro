@@ -1,0 +1,9 @@
+codata S where
+  S.f(): S
+
+codata T extends S where
+  T.g(): T
+
+function gen(): T where
+  gen().f() = gen().f()
+  gen().g() = gen().g()
