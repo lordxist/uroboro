@@ -181,9 +181,11 @@ checkCop (Ext.DesCop loc name args inner) s t = do
 -- |Typecheck a term.
 checkExp :: Context -> Ext.Exp -> Int.Type -> Checker Int.Exp
 checkExp c (Ext.VarExp loc n) t = case lookup n c of
-    Just t' | t' == t   -> return (Int.VarExp t n)
-            | otherwise -> failAt loc $ "Type Mismatch: " ++ n ++
-                " expected to be " ++ typeName t ++ " but is actually " ++ typeName t'
+    Just t' -> do
+      subsumes <- ask
+      unless (t `subsumes` t') $ do
+        failAt loc $ "Type Mismatch: " ++ n ++ " expected to have a subtype of " ++ typeName t ++ " but is actually " ++ typeName t'
+      return (Int.VarExp t n)
     Nothing             -> failAt loc $ "Unbound Variable: " ++ n
 checkExp c (Ext.AppExp loc name args) t = do
   funOrCon <- checkFunOrCon loc name t

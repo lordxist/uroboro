@@ -162,5 +162,8 @@ spec = do
         it "allows codata subtypes" $ do
             defs <- urofile "codata-subtypes"
             successfullyInEnv_ (typecheck defs) (extensionRelation defs)
+        it "allows subtyping in variable positions" $ do
+            defs <- urofile "data-subtypes-vars"
+            successfullyInEnv_ (typecheck defs) (extensionRelation defs)
 
 

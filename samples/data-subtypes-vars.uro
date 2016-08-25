@@ -1,0 +1,8 @@
+data A where
+  a(): A
+
+data B extends A where
+  b(): B
+
+function fun(A): B where
+  fun(x) = x
