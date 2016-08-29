@@ -7,7 +7,7 @@ Description : Subtyping relation
 Determine whether two types are in the subtyping relation
 -}
 module Uroboro.Subtyping
-    (extensionRelation) where
+    (extensionRelation, supertypeRelation, SubtypeVariant (NoSubtyp, ExtSums, ExtAlgDat), readWithDefault) where
 
 import Data.Maybe (fromJust)
 import Data.Monoid (Monoid, mempty, mappend)
@@ -66,3 +66,24 @@ extension = sameDef `mappend` irreflexiveExt
 
 extensionRelation :: [Def] -> Type -> Type -> Bool
 extensionRelation defs t1 t2 = runReader (runReaderT extension defs) (findDef_ defs t1, findDef_ defs t2)
+
+-- | Subtype variant: no subtyping, extensible sums-, or extensible algebraic datatypes-like subtyping.
+data SubtypeVariant = NoSubtyp | ExtSums | ExtAlgDat deriving (Show)
+
+-- | Default subtype variant: no subtyping
+defaultSubtypeVariant :: SubtypeVariant
+defaultSubtypeVariant = NoSubtyp
+
+-- | Converts a string to a SubtypeVariant if it is literally the same as one of its constructor names, otherwise returns NoSubtyp.
+readWithDefault :: String -> SubtypeVariant
+readWithDefault s
+  | s == show ExtSums   = ExtSums
+  | s == show ExtAlgDat = ExtAlgDat
+  | otherwise           = NoSubtyp
+
+
+-- | Supertype relation.
+supertypeRelation :: SubtypeVariant -> [Def] -> Type -> Type -> Bool
+supertypeRelation NoSubtyp _     = (==)
+supertypeRelation ExtSums defs   = extensionRelation defs
+supertypeRelation ExtAlgDat defs = flip $ extensionRelation defs

@@ -1,0 +1,61 @@
+{-# SubtypeVariant ExtAlgDat #-}
+
+data Nat where
+  Zero(): Nat
+  Succ(Nat): Nat
+
+function add(Nat, Nat): Nat where
+  add(Zero(), n)  = n
+  add(Succ(n), m) = Succ(add(n, m))
+
+data Bool where
+  True(): Bool
+  False(): Bool
+
+function eq(Nat, Nat): Bool where
+  eq(Zero(), Zero()) = True()
+  eq(Succ(n), Succ(m)) = eq(n, m)
+  eq(n, m) = False()
+
+data Exp where
+  Var(Nat): Exp
+  App(Exp, Exp): Exp
+  Lam(Nat, Exp): Exp
+
+function if(Bool, Exp, Exp): Exp where
+  if(True(), e1, e2)  = e1
+  if(False(), e1, e2) = e2
+
+data Env where
+  nilEnv(): Env
+  bind(Env, Nat, Exp): Env
+
+function lookup(Env, Nat): Exp where
+  lookup(bind(e, n, t), m) = if(eq(n, m), t, lookup(e, m))
+
+codata Interp where
+  Interp.eval(Exp, Env): Exp
+
+function evalApply(Exp, Exp, Env): Exp where
+  evalApply(Lam(n, body), arg, env) = interpImpl().eval(body, bind(env, n, interpImpl().eval(arg, env)))
+
+function interpImpl(): Interp where
+  interpImpl().eval(Var(n), env)       = lookup(env, n)
+  interpImpl().eval(App(fn, arg), env) = evalApply(interpImpl().eval(fn, env), arg, env)
+  interpImpl().eval(t, env)            = t
+
+data ExtExp extends Exp where
+  Num(Nat): ExtExp
+  Plus(ExtExp, ExtExp): ExtExp
+
+codata ExtInterp extends Interp where
+  ExtInterp.eval_(Exp, Env): Exp
+  ExtInterp.evalNum(ExtExp, Env): Nat
+
+function extractNat(Exp): Nat where
+  extractNat(Num(n)) = n
+
+function extInterpImpl(): ExtInterp where
+  extInterpImpl().eval_(Plus(e1, e2), env) = Num(add(extInterpImpl().evalNum(e1, env), extInterpImpl().evalNum(e2, env)))
+  extInterpImpl().eval_(t, env)            = interpImpl().eval(t, env)
+  extInterpImpl().evalNum(t, env) = extractNat(extInterpImpl().eval_(t, env))

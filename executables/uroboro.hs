@@ -23,7 +23,7 @@ import Uroboro.Checker
 import Uroboro.Interpreter (eval)
 import Uroboro.Parser (parseFile, parseExpression)
 import Uroboro.PrettyPrint (render)
-import Uroboro.Subtyping (extensionRelation)
+import Uroboro.Subtyping (supertypeRelation, SubtypeVariant)
 import Uroboro.Tree.External (Def)
 
 -- |How the program operates, and on what data.
@@ -47,12 +47,13 @@ eitherIO (Left e)  = do
 eitherIO (Right b) = return b
 
 -- |Load libraries.
-parseFiles :: [FilePath] -> IO [Def]
+-- For now, different subtype variants across libaries are not supported (the variant is taken whichever file is parsed first).
+parseFiles :: [FilePath] -> IO ([Def], SubtypeVariant)
 parseFiles paths = do
-    lol <- forM paths $ \path -> do
+    lolAndSv <- forM paths $ \path -> do
       input <- readFile path
       eitherIO $ parseFile path input
-    return $ concat lol
+    return (concat $ map fst lolAndSv, snd $ lolAndSv !! 0)
 
 -- |Parse given source code, typecheck it, and optionally run it.
 -- No output means typechecking was successful.
@@ -61,16 +62,16 @@ main = do
     args <- getArgs
     case getOpt args of
         Evaluate paths input -> do
-            defs  <- parseFiles paths
-            pexp  <- eitherIO $ parseExpression "command line" input
-            let subEnv = extensionRelation defs
-            prog  <- checkerIO (typecheck defs) subEnv
-            texp  <- flip checkerIO subEnv $ setProgram prog >> inferExp [] pexp
+            (defs, sv)  <- parseFiles paths
+            pexp        <- eitherIO $ parseExpression "command line" input
+            let subEnv = supertypeRelation sv defs
+            prog        <- checkerIO (typecheck defs) subEnv
+            texp        <- flip checkerIO subEnv $ setProgram prog >> inferExp [] pexp
 
             putStrLn (render $ eval (rules prog) texp)
         Typecheck paths -> do
-            defs  <- parseFiles paths
-            checkerIO (void (typecheck defs)) (extensionRelation defs)
+            (defs, sv)  <- parseFiles paths
+            checkerIO (void (typecheck defs)) (supertypeRelation sv defs)
         Help -> do
             putStrLn "USAGE: uroboro FILES [-- EXPRESSION]"
             exitFailure

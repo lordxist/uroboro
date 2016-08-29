@@ -17,6 +17,7 @@ module Uroboro.Token
     , parens
     , reserved
     , symbol
+    , subtypepragma
       -- * Parser for parts of tokens
       -- $partsoftokens
     , whiteSpace
@@ -24,6 +25,7 @@ module Uroboro.Token
 
 import Control.Applicative ((<$>), (<*>), (<*), (*>))
 import Control.Arrow (left)
+import Control.Monad.State
 
 import Text.Parsec hiding (parse)
 import qualified Text.Parsec as Parsec
@@ -31,6 +33,7 @@ import Text.Parsec.Error (errorMessages, showErrorMessages)
 import Text.Parsec.Pos
 
 import Uroboro.Error
+import Uroboro.Subtyping (SubtypeVariant (NoSubtyp, ExtSums, ExtAlgDat), readWithDefault)
 
 -- | Parser without user state.
 type Parser = Parsec String ()
@@ -133,6 +136,10 @@ skip p     = p *> return ()
 
 symbol     :: String -> Parser String
 symbol s   = lexeme (string s)
+
+-- | Parser @subtypepragma v@ accepts the subtype pragma.
+subtypepragma :: Parser SubtypeVariant
+subtypepragma = string "{-# SubtypeVariant " *> liftM readWithDefault ident <* string " #-}"
 
 -- $partsoftokens
 --

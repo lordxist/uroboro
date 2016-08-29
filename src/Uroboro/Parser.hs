@@ -23,6 +23,7 @@ import Text.Parsec hiding (parse)
 import Text.Parsec.Error (errorMessages, showErrorMessages)
 
 import Uroboro.Error
+import Uroboro.Subtyping (SubtypeVariant)
 import Uroboro.Token
 import Uroboro.Tree.External
     (
@@ -37,9 +38,13 @@ import Uroboro.Tree.External
     , Type(..)
     )
 
--- | Parse whole file.
-parseFile :: FilePath -> String -> Either Error [Def]
-parseFile = parse parseDef
+-- | Parse whole file and collect the subtyping variant at its start.
+parseFile :: FilePath -> String -> Either Error ([Def], SubtypeVariant)
+parseFile = parse $ (flip (,)) <$> subtypepragma <*> parseDef
+
+-- | Parse whole file (without collecting the subtyping variant).
+parseFile_ :: FilePath -> String -> Either Error [Def]
+parseFile_ = parse parseDef
 
 -- | Parse expression.
 parseExpression :: FilePath -> String -> Either Error Exp
