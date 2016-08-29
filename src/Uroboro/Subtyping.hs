@@ -7,7 +7,7 @@ Description : Subtyping relation
 Determine whether two types are in the subtyping relation
 -}
 module Uroboro.Subtyping
-    (extensionRelation, supertypeRelation, SubtypeVariant (NoSubtyp, ExtSums, ExtAlgDat), readWithDefault) where
+    (extensionRelation, supertypeRelation, SubtypeVariant (NoSubtyp, ExtSums, ExtAlgDat), readWithDefault, defaultSubtypeVariant) where
 
 import Data.Maybe (fromJust)
 import Data.Monoid (Monoid, mempty, mappend)

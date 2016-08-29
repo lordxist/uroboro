@@ -33,7 +33,7 @@ import Text.Parsec.Error (errorMessages, showErrorMessages)
 import Text.Parsec.Pos
 
 import Uroboro.Error
-import Uroboro.Subtyping (SubtypeVariant (NoSubtyp, ExtSums, ExtAlgDat), readWithDefault)
+import Uroboro.Subtyping (SubtypeVariant (NoSubtyp, ExtSums, ExtAlgDat), readWithDefault, defaultSubtypeVariant)
 
 -- | Parser without user state.
 type Parser = Parsec String ()
@@ -139,7 +139,7 @@ symbol s   = lexeme (string s)
 
 -- | Parser @subtypepragma v@ accepts the subtype pragma.
 subtypepragma :: Parser SubtypeVariant
-subtypepragma = string "{-# SubtypeVariant " *> liftM readWithDefault ident <* string " #-}"
+subtypepragma = (try $ string "{-# SubtypeVariant " *> liftM readWithDefault ident <* string " #-}") <|> return defaultSubtypeVariant
 
 -- $partsoftokens
 --
