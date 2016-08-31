@@ -1,6 +1,7 @@
 module Uroboro.CheckerSpec
     (
       spec
+    , uroprog
     , prelude
     , shouldFail
     ) where
@@ -22,7 +23,7 @@ import Uroboro.Checker
     , TypeSubEnv
     )
 import Uroboro.Error
-import Uroboro.Parser (parseDef, parseExp)
+import Uroboro.Parser (parseFile, parseDef, parseExp)
 import Uroboro.Subtyping
 import Uroboro.Tree.External(Def)
 import Uroboro.Tree.Internal (Exp(..), Type(..))
@@ -36,12 +37,23 @@ urofile s = do
         Left msg -> fail $ "Parser: " ++ show msg
         Right defs -> return defs
 
-prelude :: IO Program
-prelude = do
-    defs <- urofile "prelude"
-    case checkerEitherDefault (typecheck defs) of
+urofileWithSubtypeVariant :: String -> IO ([Def], SubtypeVariant)
+urofileWithSubtypeVariant s = do
+    fname <- getDataFileName $ "samples/" ++ s ++ ".uro"
+    input <- readFile fname
+    case parseFile fname input of
+        Left msg -> fail $ "Parser: " ++ show msg
+        Right defs -> return defs
+
+uroprog :: String -> IO Program
+uroprog s = do
+    (defs, sv) <- urofileWithSubtypeVariant s
+    case checkerEither (typecheck defs) (supertypeRelation sv defs) of
         Left _ -> fail "Checker"
         Right p -> return p
+
+prelude :: IO Program
+prelude = uroprog "prelude"
 
 -- |Context using prelude
 c :: Context

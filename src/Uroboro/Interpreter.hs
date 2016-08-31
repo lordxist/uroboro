@@ -34,8 +34,9 @@ type Substitution = [(Identifier, Exp)]
 pmatch :: Exp -> Pat -> Either String Substitution
 pmatch (VarExp _ _) _          = error "Substitute variables before trying to match"
 pmatch term (VarPat r x)
-    | returnType term /= r   = Left "Type Mismatch"
     | otherwise              = return [(x, term)]
+    -- TODO: replace non-equality comparisons with non-subsumption comparisons
+    -- | returnType term /= r   = Left "Type Mismatch"
   where
     returnType (VarExp t _)     = t
     returnType (AppExp t _ _)   = t

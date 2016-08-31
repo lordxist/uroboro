@@ -1,0 +1,12 @@
+{-# SubtypeVariant ExtAlgDat #-}
+
+data Parent where
+
+data Sub extends Parent where
+  sub(): Sub
+
+function parentToParent(Parent): Parent where
+  parentToParent(p) = p
+
+function subToParentVia(Sub): Parent where
+  subToParentVia(s) = parentToParent(s)

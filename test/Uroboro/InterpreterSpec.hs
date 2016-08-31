@@ -5,21 +5,24 @@ module Uroboro.InterpreterSpec
 
 import Test.Hspec
 
-import Uroboro.Checker (setProgram, checkerEitherDefault, inferExp, rules)
-import Uroboro.CheckerSpec (prelude)
+import Uroboro.Checker (Program, setProgram, checkerEitherDefault, inferExp, rules)
+import Uroboro.CheckerSpec (prelude, uroprog)
 import Uroboro.Interpreter (pmatch, eval)
 import Uroboro.Parser (parseExp)
 import Uroboro.Tree.Internal
 
 import Utils (parseString)
 
-main :: String -> IO Exp
-main input = do
+checkWithLib :: String -> IO Program -> IO Exp
+checkWithLib input libInput = do
     pexp <- parseString parseExp input
-    prog <- prelude
+    prog <- libInput
     case checkerEitherDefault (setProgram prog >> inferExp [] pexp) of
         Left msg -> fail $ "Checker:" ++ show msg
         Right texp -> return texp
+
+main :: String -> IO Exp
+main input = checkWithLib input prelude
 
 spec :: Spec
 spec = do
@@ -49,6 +52,12 @@ spec = do
             p <- fmap rules prelude
             m <- main "map(add1(), cons(succ(zero()), cons(zero(), empty())))"
             r <- main "cons(succ(succ(zero())), cons(succ(zero()), empty()))"
+            eval p m `shouldBe` r
+        it "is compatible with simple type conversion" $ do
+            let prog = uroprog "type-conversion"
+            p <- fmap rules prog
+            m <- checkWithLib "subToParentVia(sub())" prog
+            r <- checkWithLib "sub()" prog
             eval p m `shouldBe` r
     describe "prelude" $ do
         it "adder works" $ do
