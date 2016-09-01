@@ -43,7 +43,7 @@ pmatch term (VarPat r x)
     returnType (ConExp t _ _)   = t
     returnType (DesExp t _ _ _) = t
 pmatch (ConExp r c ts) (ConPat r' c' ps)
-    | r /= r'                = Left "Type Mismatch"
+    -- | r /= r'                = Left "Type Mismatch"
     | c /= c'                = Left $
         "Name Mismatch: constructor " ++ c' ++ " doesn't match pattern " ++ c
     | length ts /= length ps = Left "Argument Length Mismatch"

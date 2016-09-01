@@ -33,6 +33,12 @@ spec = do
             let t = Type "ListOfInt"
             let term = (ConExp t "empty" [])
             pmatch term (VarPat t name) `shouldBe` Right [(name, term)]
+        it "matches expressions of some type to patterns with a supertype" $ do
+            let name  = "n"
+            let bind  = ConExp (Type "Nat") "Succ" [ConExp (Type "Nat") "Zero" []]
+            let term  = ConExp (Type "ExtExp") "Num" [bind]
+            let p     = ConPat (Type "Exp") "Num" [VarPat (Type "Nat") name]
+            pmatch term p `shouldBe` Right [(name, bind)]
     describe "eval" $ do
         it "completes" $ do
             p <- fmap rules prelude
